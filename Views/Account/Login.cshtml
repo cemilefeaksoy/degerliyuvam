@@ -1,0 +1,16 @@
+@model LoginViewModel
+@{ ViewData["Title"] = "Giris"; }
+<section class="form-shell">
+    <h2>Giris Yap</h2>
+    <form asp-action="Login" method="post">
+        <label>E-posta</label>
+        <input asp-for="Email" />
+        <span asp-validation-for="Email"></span>
+        <label>Sifre</label>
+        <input asp-for="Password" type="password" />
+        <span asp-validation-for="Password"></span>
+        <label class="chk"><input asp-for="RememberMe" type="checkbox" /> Beni hatirla</label>
+        <button class="btn-glow" type="submit">Giris Yap</button>
+        <div asp-validation-summary="All"></div>
+    </form>
+</section>

@@ -1,0 +1,265 @@
+@model List<Listing>
+@using Degerliyuvam.Models
+@{
+    ViewData["Title"] = "İlanlar";
+    var isAdmin = Context.Session.GetString("Role") == "Admin";
+    var isLoggedIn = Context.Session.GetInt32("UserId").HasValue;
+    var cities = ViewBag.Cities as List<string> ?? new List<string>();
+    var districts = ViewBag.Districts as List<string> ?? new List<string>();
+    var rooms = ViewBag.Rooms as List<string> ?? new List<string>();
+    var types = ViewBag.Types as List<string> ?? new List<string>();
+    var detailed = (bool?)ViewBag.FilterDetailed == true;
+    var locationMapJson = ViewBag.LocationMapJson as string ?? "{}";
+    var allListings = Model.ToList();
+    var dailyRecommendedListings = allListings.Where(x => x.IsDailyRecommended).ToList();
+    var regularListings = allListings.Where(x => !x.IsDailyRecommended).ToList();
+    var selectedSort = (ViewBag.FilterSort as string ?? "").ToLowerInvariant();
+    var pageTitle = ViewBag.ListingPageTitle as string ?? "İlan Ara & Filtrele";
+    var countLabel = ViewBag.ListingPageCountLabel as string ?? "ilan bulundu";
+    var isSpecialList = (ViewBag.IsMyListings as bool?) == true || (ViewBag.IsRentedListings as bool?) == true;
+}
+
+@if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
+{
+    <div class="toast-inline success">@success</div>
+}
+@if (TempData["Error"] is string error && !string.IsNullOrWhiteSpace(error))
+{
+    <div class="toast-inline danger">@error</div>
+}
+
+@* ─── Filter Panel ─────────────────────────────────────────────────────── *@
+<div class="listings-filter-panel reveal-on-scroll">
+    <div class="lfp-head">
+        <h2 class="lfp-title">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2.586a1 1 0 01-.293.707l-4.414 4.414V15a1 1 0 01-.553.894l-4 2A1 1 0 017 17v-5.293L2.293 7.293A1 1 0 012 6.586V4z"/></svg>
+            @pageTitle
+        </h2>
+        <span class="lfp-count">@Model.Count @countLabel</span>
+    </div>
+
+    @if (!isSpecialList)
+    {
+    <form method="get" class="lfp-form">
+        <div class="lfp-grid">
+            <select name="purpose" class="lfp-select">
+                <option value="">Tüm Tipler</option>
+                @if (string.Equals(ViewBag.FilterPurpose as string, "Satılık", StringComparison.OrdinalIgnoreCase))
+                { <option value="Satılık" selected>Satılık</option> }
+                else
+                { <option value="Satılık">Satılık</option> }
+                @if (string.Equals(ViewBag.FilterPurpose as string, "Kiralık", StringComparison.OrdinalIgnoreCase))
+                { <option value="Kiralık" selected>Kiralık</option> }
+                else
+                { <option value="Kiralık">Kiralık</option> }
+            </select>
+
+            <select name="city" class="lfp-select" data-province-select data-location-map='@Html.Raw(locationMapJson)'>
+                <option value="">Tüm Şehirler</option>
+                @foreach (var c in cities)
+                {
+                    if (string.Equals(c, ViewBag.FilterCity as string, StringComparison.OrdinalIgnoreCase))
+                    { <option value="@c" selected>@c</option> }
+                    else
+                    { <option value="@c">@c</option> }
+                }
+            </select>
+
+            <select name="district" class="lfp-select" data-district-select data-selected="@((string?)ViewBag.FilterDistrict ?? "")" data-placeholder="Tüm İlçeler">
+                <option value="">Tüm İlçeler</option>
+                @foreach (var d in districts)
+                {
+                    if (string.Equals(d, ViewBag.FilterDistrict as string, StringComparison.OrdinalIgnoreCase))
+                    { <option value="@d" selected>@d</option> }
+                    else
+                    { <option value="@d">@d</option> }
+                }
+            </select>
+
+            <input type="number" name="minPrice" placeholder="Min Fiyat (TL)" value="@ViewBag.FilterMinPrice" class="lfp-input" />
+            <input type="number" name="maxPrice" placeholder="Maks Fiyat (TL)" value="@ViewBag.FilterMaxPrice" class="lfp-input" />
+
+            <select name="sort" class="lfp-select">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(selectedSort))">Karışık</option>
+                <option value="newest" selected="@(selectedSort == "newest")">En Yeni</option>
+                <option value="price_asc" selected="@(selectedSort == "price_asc")">Fiyat: Düşükten Yükseğe</option>
+                <option value="price_desc" selected="@(selectedSort == "price_desc")">Fiyat: Yüksekten Düşüğe</option>
+                <option value="title_asc" selected="@(selectedSort == "title_asc")">İsim A→Z</option>
+                <option value="oldest" selected="@(selectedSort == "oldest")">En Eski</option>
+            </select>
+        </div>
+
+        <div class="lfp-date-row">
+            <label class="lfp-chk">
+                <input type="checkbox" name="detailed" value="true" @(detailed ? "checked" : "") id="detailedFilterToggle" />
+                <span>Gelişmiş filtre (oda, tür, m²)</span>
+            </label>
+            <div class="lfp-date-group">
+                <span class="lfp-date-label">Tarih:</span>
+                <input type="date" name="dateFrom" value="@ViewBag.FilterDateFrom" class="lfp-date" />
+                <span class="lfp-date-sep">—</span>
+                <input type="date" name="dateTo" value="@ViewBag.FilterDateTo" class="lfp-date" />
+            </div>
+        </div>
+
+        <div id="detailedFilterBox" class="lfp-grid filter-advanced @(detailed ? "open" : "")">
+            <select name="room" class="lfp-select">
+                <option value="">Tüm Oda Tipleri</option>
+                @foreach (var room in rooms)
+                {
+                    if (string.Equals(room, ViewBag.FilterRoom as string, StringComparison.OrdinalIgnoreCase))
+                    { <option value="@room" selected>@room</option> }
+                    else
+                    { <option value="@room">@room</option> }
+                }
+            </select>
+            <select name="propertyType" class="lfp-select">
+                <option value="">Tüm Emlak Tipleri</option>
+                @foreach (var t in types)
+                {
+                    if (string.Equals(t, ViewBag.FilterType as string, StringComparison.OrdinalIgnoreCase))
+                    { <option value="@t" selected>@t</option> }
+                    else
+                    { <option value="@t">@t</option> }
+                }
+            </select>
+            <input type="number" name="minNet" placeholder="Min Net m²" value="@ViewBag.FilterMinNet" class="lfp-input" />
+            <input type="number" name="maxNet" placeholder="Maks Net m²" value="@ViewBag.FilterMaxNet" class="lfp-input" />
+        </div>
+
+        <div class="lfp-actions">
+            <button type="submit" class="btn-lux btn-thin">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                Filtrele
+            </button>
+            <a asp-action="Index" class="btn-chat">Filtreleri Temizle</a>
+            @if (isLoggedIn)
+            {
+                <a asp-action="MyListings" class="btn-edit">Kendi İlanlarım</a>
+                <a asp-action="Rented" class="btn-chat">Kiraladığım İlanlar</a>
+            }
+            @if (isLoggedIn)
+            {
+                <a asp-controller="Listings" asp-action="Create" class="btn-lux" style="margin-left:auto;">+ İlan Ver</a>
+            }
+        </div>
+    </form>
+    }
+    else
+    {
+        <div class="lfp-actions" style="padding:16px 22px 20px;">
+            <a asp-action="Index" class="btn-chat">Tüm İlanlar</a>
+            <a asp-action="MyListings" class="btn-edit">Kendi İlanlarım</a>
+            <a asp-action="Rented" class="btn-chat">Kiraladığım İlanlar</a>
+            @if (isLoggedIn)
+            {
+                <a asp-controller="Listings" asp-action="Create" class="btn-lux" style="margin-left:auto;">+ İlan Ver</a>
+            }
+        </div>
+    }
+</div>
+
+@* ─── Günün Tavsiyeleri ────────────────────────────────────────────────── *@
+@if (dailyRecommendedListings.Any())
+{
+    <section class="recommended-zone daily-top-zone reveal-on-scroll">
+        <div class="section-head slim">
+            <h2>Günün Tavsiye Edilen Evleri</h2>
+            <p>Uzman ekibimizin her gün özenle seçtiği ilanlar.</p>
+        </div>
+        <div class="grid-cards" style="margin-top:14px;">
+            @foreach (var item in dailyRecommendedListings)
+            {
+                <article class="lux-card daily-top-card tilt-card reveal-on-scroll">
+                    <a asp-action="Details" asp-route-id="@item.Id" class="card-image-link">
+                        <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
+                        <span class="daily-badge-overlay">Günün Tavsiyesi</span>
+                        @if (item.IsRented) { <span class="rented-overlay">KİRALANDI</span> }
+                    </a>
+                    <div class="lux-card-body">
+                        <div class="lux-card-tags">
+                            <span>@item.PropertyType</span>
+                            <span>@item.RoomCount</span>
+                            <span>@item.NetSquareMeters m²</span>
+                        </div>
+                        <h3 class="lux-card-title">
+                            <a class="listing-title-link" asp-action="Details" asp-route-id="@item.Id">@item.Title</a>
+                        </h3>
+                        <p class="lux-card-loc">@item.Province / @item.District</p>
+                        <p class="owner-pill">İlan Sahibi: <a asp-controller="Profiles" asp-action="Seller" asp-route-id="@item.OwnerUserId">@item.OwnerName</a></p>
+                        <div class="lux-card-foot">
+                            <div>
+                                <div class="lux-card-price">@item.MonthlyPrice.ToString("N0") TL</div>
+                                <div class="lux-card-price-label">@item.ListingPurpose</div>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <a class="btn-lux btn-thin" asp-action="Details" asp-route-id="@item.Id">Detay →</a>
+                                @if (isAdmin)
+                                {
+                                    <form asp-action="ToggleDailyRecommendation" method="post">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn-edit">Kaldır</button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+}
+
+@* ─── Tüm İlanlar ──────────────────────────────────────────────────────── *@
+<section class="grid-cards" style="margin-top:8px;">
+    @if (!regularListings.Any())
+    {
+        <div class="panel" style="grid-column:1/-1;text-align:center;padding:40px 20px;">
+            <div style="font-size:3rem;margin-bottom:12px;">Arama</div>
+            <h3 style="margin:0 0 8px;">Bu filtreye uygun ilan bulunamadı</h3>
+            <p style="color:var(--muted);margin:0;">Filtreyi temizleyip tekrar deneyin ya da farklı şehir/ilçe seçin.</p>
+            <a asp-action="Index" class="btn-lux btn-thin" style="margin-top:16px;display:inline-flex;">Tüm İlanları Gör</a>
+        </div>
+    }
+    @foreach (var item in regularListings)
+    {
+        <article class="lux-card tilt-card reveal-on-scroll @(item.IsAdminRecommended ? "recommended-card" : "")">
+            <a asp-action="Details" asp-route-id="@item.Id" class="card-image-link">
+                <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
+                @if (item.IsRented) { <span class="rented-overlay">KİRALANDI</span> }
+                @if (item.IsAdminRecommended) { <span class="admin-badge-overlay">★ Önerilen</span> }
+            </a>
+            <div class="lux-card-body">
+                <div class="lux-card-tags">
+                    <span>@item.PropertyType</span>
+                    <span>@item.RoomCount</span>
+                    <span>@item.NetSquareMeters m²</span>
+                </div>
+                <h3 class="lux-card-title">
+                    <a class="listing-title-link" asp-action="Details" asp-route-id="@item.Id">@item.Title</a>
+                </h3>
+                <p class="lux-card-loc">@item.Province / @item.District</p>
+                <p class="owner-pill">
+                    İlan Sahibi: <a asp-controller="Profiles" asp-action="Seller" asp-route-id="@item.OwnerUserId">@item.OwnerName</a>
+                    <span class="lux-card-date">@item.CreatedAt.ToString("dd.MM.yy")</span>
+                </p>
+                <div class="lux-card-foot">
+                    <div>
+                        <div class="lux-card-price">@item.MonthlyPrice.ToString("N0") TL</div>
+                        <div class="lux-card-price-label">@item.ListingPurpose</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <a class="btn-lux btn-thin" asp-action="Details" asp-route-id="@item.Id">Detay →</a>
+                        @if (isAdmin)
+                        {
+                            <form asp-action="ToggleDailyRecommendation" method="post">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="btn-edit">@(item.IsDailyRecommended ? "Kaldır" : "Günün Tavsiyesi")</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        </article>
+    }
+</section>

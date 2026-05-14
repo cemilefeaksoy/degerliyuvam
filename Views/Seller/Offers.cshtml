@@ -1,0 +1,110 @@
+@model List<OfferDisplayViewModel>
+@using Degerliyuvam.Models
+@{
+    ViewData["Title"] = "Satıcı Teklifleri";
+    var pending = Model.Count(x => x.Status == OfferStatus.Pending);
+    var accepted = Model.Count(x => x.Status == OfferStatus.Accepted);
+    var rejected = Model.Count(x => x.Status == OfferStatus.Rejected);
+}
+
+@if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
+{
+    <section class="panel toast-inline success">@success</section>
+}
+@if (TempData["Error"] is string error && !string.IsNullOrWhiteSpace(error))
+{
+    <section class="panel toast-inline danger">@error</section>
+}
+
+<section class="panel reveal-on-scroll seller-offers-page">
+    <div class="section-head slim">
+        <h2>Satıcı Teklifleri</h2>
+        <p>İlanlarınıza gelen fiyat tekliflerini ve kiralama taleplerini tek yerden yönetin.</p>
+    </div>
+
+    <div class="offer-metric-row">
+        <div><strong>@Model.Count</strong><span>Toplam</span></div>
+        <div><strong>@pending</strong><span>Bekleyen</span></div>
+        <div><strong>@accepted</strong><span>Kabul</span></div>
+        <div><strong>@rejected</strong><span>Red</span></div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <p class="studio-sub">Henüz gelen teklif veya kiralama talebi yok.</p>
+    }
+    else
+    {
+        <div class="offers-table-wrap">
+            <table class="lux-table">
+                <thead>
+                    <tr>
+                        <th>İlan</th>
+                        <th>Tip</th>
+                        <th>Gönderen</th>
+                        <th>Tutar</th>
+                        <th>Durum</th>
+                        <th>Not</th>
+                        <th>Tarih</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var o in Model)
+                {
+                    <tr>
+                        <td>
+                            @if (o.ListingId > 0)
+                            {
+                                <a class="table-link" asp-controller="Listings" asp-action="Details" asp-route-id="@o.ListingId">@o.ListingTitle</a>
+                            }
+                            else
+                            {
+                                @o.ListingTitle
+                            }
+                        </td>
+                        <td>@(o.Type == OfferType.RentalRequest ? "Kiralama Talebi" : "Fiyat Teklifi")</td>
+                        <td>@o.FromUserName</td>
+                        <td>@o.Amount.ToString("N0") TL</td>
+                        <td>
+                            @if (o.Status == OfferStatus.Pending)
+                            {
+                                <span class="status-live">Beklemede</span>
+                            }
+                            else if (o.Status == OfferStatus.Accepted && o.Type == OfferType.RentalRequest)
+                            {
+                                <span class="status-rented">Kiralandı</span>
+                            }
+                            else if (o.Status == OfferStatus.Accepted)
+                            {
+                                <span class="status-accepted">Kabul Edildi</span>
+                            }
+                            else
+                            {
+                                <span class="status-rejected">Reddedildi</span>
+                            }
+                        </td>
+                        <td>@(string.IsNullOrWhiteSpace(o.Note) ? "-" : o.Note)</td>
+                        <td>@o.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            @if (o.Status == OfferStatus.Pending)
+                            {
+                                <form asp-action="UpdateOfferStatus" method="post" class="offer-actions">
+                                    <input type="hidden" name="offerId" value="@o.OfferId" />
+                                    <input type="hidden" name="returnTo" value="Offers" />
+                                    <button type="submit" name="status" value="Accepted" class="btn-edit">Kabul Et</button>
+                                    <button type="submit" name="status" value="Rejected" class="btn-delete">Reddet</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="studio-sub">Tamamlandı</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

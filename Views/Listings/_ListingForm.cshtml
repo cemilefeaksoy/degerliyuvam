@@ -1,0 +1,339 @@
+@model ListingEditViewModel
+@{
+    var isAdmin = (ViewBag.IsAdmin as bool?) == true;
+    var sellers = ViewBag.Sellers as List<User> ?? new List<User>();
+    var provinces = ViewBag.Provinces as List<string> ?? new List<string>();
+    var locationMapJson = ViewBag.LocationMapJson as string ?? "{}";
+    var existingImages = (Model.ExistingImagesCsv ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(x => x.Trim())
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+    if (!existingImages.Any() && !string.IsNullOrWhiteSpace(Model.ImageUrl))
+    {
+        existingImages.Add(Model.ImageUrl);
+    }
+    var selectedCover = string.IsNullOrWhiteSpace(Model.CoverImageUrl) ? Model.ImageUrl : Model.CoverImageUrl;
+}
+
+<form method="post" enctype="multipart/form-data" class="studio-form" id="listingForm" novalidate>
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="ExistingImagesCsv" type="hidden" />
+    <input asp-for="CoverImageUrl" type="hidden" data-cover-image-input />
+
+    <div class="studio-grid">
+        <div class="studio-col">
+            <div class="form-section">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Temel Bilgiler</span>
+                </div>
+
+                <label>İlan Başlığı</label>
+                <input asp-for="Title" placeholder="Örn: Deniz manzaralı 2+1 daire" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+
+                <label>Açıklama</label>
+                <textarea asp-for="Description" rows="5" placeholder="İlan açıklamasını yazın..."></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+
+                <label>İlan Tipi</label>
+                <div class="purpose-toggle-group">
+                    <label class="purpose-toggle">
+                        <input asp-for="ListingPurpose" type="radio" value="Kiralik" />
+                        <span>Kiralık</span>
+                    </label>
+                    <label class="purpose-toggle">
+                        <input asp-for="ListingPurpose" type="radio" value="Satilik" />
+                        <span>Satılık</span>
+                    </label>
+                </div>
+                <span asp-validation-for="ListingPurpose" class="text-danger"></span>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Konum</span>
+                </div>
+
+                <div class="row-2">
+                    <div>
+                        <label>İl</label>
+                        <select asp-for="Province" data-province-select data-location-map='@Html.Raw(locationMapJson)'>
+                            @foreach (var city in provinces)
+                            {
+                                <option value="@city">@city</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Province" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>İlçe</label>
+                        <select asp-for="District" data-district-select data-selected="@Model.District" data-placeholder="İlçe Seçin">
+                            <option value="@Model.District">@Model.District</option>
+                        </select>
+                        <span asp-validation-for="District" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Emlak Özellikleri</span>
+                </div>
+
+                <div class="row-2">
+                    <div>
+                        <label>Emlak Tipi</label>
+                        <select asp-for="PropertyType">
+                            <option value="Daire">Daire</option>
+                            <option value="Villa">Villa</option>
+                            <option value="Rezidans">Rezidans</option>
+                            <option value="Mustakil Ev">Müstakil Ev</option>
+                            <option value="Dublex">Dublex</option>
+                        </select>
+                        <span asp-validation-for="PropertyType" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>Oda Sayısı</label>
+                        <select asp-for="RoomCount">
+                            <option value="1+0">1+0</option>
+                            <option value="1+1">1+1</option>
+                            <option value="2+1">2+1</option>
+                            <option value="3+1">3+1</option>
+                            <option value="4+1">4+1</option>
+                            <option value="5+1">5+1</option>
+                            <option value="6+1">6+1</option>
+                        </select>
+                        <span asp-validation-for="RoomCount" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row-2">
+                    <div>
+                        <label>Brüt m²</label>
+                        <input asp-for="GrossSquareMeters" type="number" min="10" max="5000" />
+                        <span asp-validation-for="GrossSquareMeters" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>Net m²</label>
+                        <input asp-for="NetSquareMeters" type="number" min="10" max="5000" />
+                        <span asp-validation-for="NetSquareMeters" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row-2">
+                    <div>
+                        <label>Bina Yaşı</label>
+                        <input asp-for="BuildingAge" type="number" min="0" max="80" />
+                        <span asp-validation-for="BuildingAge" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>Isıtma Tipi</label>
+                        <select asp-for="HeatingType">
+                            <option value="Kombi Dogalgaz">Kombi Doğalgaz</option>
+                            <option value="Merkezi">Merkezi</option>
+                            <option value="Yerden Isitma">Yerden Isıtma</option>
+                            <option value="Klima">Klima</option>
+                            <option value="Isi Pompasi">Isı Pompası</option>
+                            <option value="Soba">Soba</option>
+                        </select>
+                        <span asp-validation-for="HeatingType" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row-2">
+                    <div>
+                        <label>Bulunduğu Kat</label>
+                        <input asp-for="Floor" type="number" min="0" max="100" />
+                        <span asp-validation-for="Floor" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>Toplam Kat</label>
+                        <input asp-for="TotalFloors" type="number" min="1" max="150" />
+                        <span asp-validation-for="TotalFloors" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Banyo Sayısı</label>
+                    <input asp-for="BathroomCount" type="number" min="1" max="20" style="max-width:200px;" />
+                    <span asp-validation-for="BathroomCount" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Ek Özellikler</span>
+                </div>
+                <p class="studio-sub" style="margin-bottom:14px;">Evinizin sahip olduğu özelliklere tıklayın.</p>
+
+                <div class="feature-toggle-grid">
+                    <label class="feature-toggle">
+                        <input asp-for="Furnished" type="checkbox" />
+                        <span>Eşyalı</span>
+                    </label>
+                    <label class="feature-toggle">
+                        <input asp-for="Balcony" type="checkbox" />
+                        <span>Balkon</span>
+                    </label>
+                    <label class="feature-toggle">
+                        <input asp-for="Elevator" type="checkbox" />
+                        <span>Asansör</span>
+                    </label>
+                    <label class="feature-toggle">
+                        <input asp-for="Parking" type="checkbox" />
+                        <span>Otopark</span>
+                    </label>
+                    <label class="feature-toggle">
+                        <input asp-for="InSite" type="checkbox" />
+                        <span>Site İçinde</span>
+                    </label>
+                    <label class="feature-toggle">
+                        <input asp-for="HasPool" type="checkbox" />
+                        <span>Havuz</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Fiyatlandırma</span>
+                </div>
+
+                <div class="row-2">
+                    <div>
+                        <label>Aylık Fiyat (TL)</label>
+                        <input asp-for="MonthlyPrice" type="number" min="1000" step="500" />
+                        <span asp-validation-for="MonthlyPrice" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>Depozito (TL)</label>
+                        <input asp-for="Deposit" type="number" min="0" step="500" />
+                        <span asp-validation-for="Deposit" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Aidat (TL/ay)</label>
+                    <input asp-for="Dues" type="number" min="0" step="100" style="max-width:220px;" />
+                    <span asp-validation-for="Dues" class="text-danger"></span>
+                </div>
+            </div>
+
+            @if (isAdmin && Model.Id == 0)
+            {
+                <div class="form-section">
+                    <div class="form-section-head">
+                        <span class="form-section-icon">•</span>
+                        <span class="form-section-title">Admin Ayarları</span>
+                    </div>
+                    <label>İlan Sahibi</label>
+                    <select asp-for="OwnerUserId">
+                        <option value="">Kendi hesabım</option>
+                        @foreach (var seller in sellers)
+                        {
+                            <option value="@seller.Id">@seller.FullName (@seller.Email) - @seller.Role</option>
+                        }
+                    </select>
+                    <span asp-validation-for="OwnerUserId" class="text-danger"></span>
+
+                    <label class="feature-toggle" style="margin-top:12px;display:inline-flex;">
+                        <input asp-for="IsAdminRecommended" type="checkbox" />
+                        <span>Admin Önerisine Ekle</span>
+                    </label>
+                </div>
+            }
+        </div>
+
+        <aside class="studio-preview-panel">
+            <div class="form-section" style="padding:0;">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Fotoğraflar</span>
+                </div>
+
+                <label class="upload-zone" for="ImageFile">
+                    <span class="upload-title">Kapak Fotoğrafı</span>
+                    <span class="upload-sub">Buraya yüklenen dosya kapak olur. Otomatik görsel eklenmez.</span>
+                    <span class="upload-pill">Dosya Seç</span>
+                    <input asp-for="ImageFile" id="ImageFile" type="file" accept=".jpg,.jpeg,.png,.webp" data-image-upload />
+                </label>
+                <span asp-validation-for="ImageFile" class="text-danger"></span>
+
+                <div class="live-preview">
+                    <p>Canlı Önizleme</p>
+                    <img id="livePreviewImage" src="@(string.IsNullOrWhiteSpace(Model.ImageUrl) ? "" : Model.ImageUrl)" alt="Önizleme" />
+                </div>
+
+                @if (Model.Id > 0 && existingImages.Any())
+                {
+                    <div class="cover-picker">
+                        <label>Mevcut Fotoğraflardan Kapak Seç</label>
+                        <div class="cover-picker-grid">
+                            @foreach (var image in existingImages)
+                            {
+                                var isChecked = string.Equals(image, selectedCover, StringComparison.OrdinalIgnoreCase);
+                                <label class="cover-choice @(isChecked ? "selected" : "")">
+                                    <input type="radio" name="coverChoice" value="@image" @(isChecked ? "checked" : "") data-cover-choice />
+                                    <img src="@image" alt="Kapak seçeneği" />
+                                    <span>Kapak</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <label style="margin-top:12px;">Ek Fotoğraflar (çoklu seçim)</label>
+                <label class="upload-zone upload-zone-sm" for="ImageFiles">
+                    <span class="upload-title">+ Galeri Fotoğrafı</span>
+                    <span class="upload-sub">Birden fazla seçebilirsiniz</span>
+                    <span class="upload-pill">Dosyaları Seç</span>
+                    <input asp-for="ImageFiles" id="ImageFiles" type="file" accept=".jpg,.jpeg,.png,.webp" multiple />
+                </label>
+                <span asp-validation-for="ImageFiles" class="text-danger"></span>
+
+                <label style="margin-top:12px;">Fotoğraf URL (opsiyonel)</label>
+                <input asp-for="ImageUrl" placeholder="https://... veya /img/..." data-image-url />
+                <span asp-validation-for="ImageUrl" class="text-danger"></span>
+
+                <label style="margin-top:8px;">Ek URL'ler (her satıra bir URL)</label>
+                <textarea asp-for="AdditionalImageUrls" rows="3" placeholder="https://ornek.com/1.jpg&#10;https://ornek.com/2.jpg"></textarea>
+                <span asp-validation-for="AdditionalImageUrls" class="text-danger"></span>
+
+                @if (Model.Id > 0)
+                {
+                    <label class="feature-toggle" style="margin-top:10px;display:inline-flex;">
+                        <input asp-for="ResetExistingImages" type="checkbox" />
+                        <span>Eski fotoğrafları temizle</span>
+                    </label>
+                }
+            </div>
+        </aside>
+    </div>
+
+    <div asp-validation-summary="ModelOnly" class="validation-box"></div>
+
+    @if (Model.Id == 0)
+    {
+        <div class="terms-box">
+            <label class="chk">
+                <input asp-for="TermsAccepted" type="checkbox" />
+                <span>Emlak kuruluşumuz ödemeden <strong>%4 + KDV komisyon</strong> alacaktır, okudum ve onaylıyorum.</span>
+            </label>
+            <span asp-validation-for="TermsAccepted" class="text-danger"></span>
+        </div>
+    }
+
+    <div class="studio-actions">
+        <button class="btn-glow btn-big" type="submit" id="listingSubmitBtn">
+            @(Model.Id == 0 ? "İlanı Yayınla" : "Değişiklikleri Kaydet")
+        </button>
+        <a class="btn-chat" asp-controller="Listings" asp-action="Index">Vazgeç</a>
+    </div>
+</form>

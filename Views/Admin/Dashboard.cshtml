@@ -1,0 +1,663 @@
+@model List<Listing>
+@using Degerliyuvam.Models
+@{
+    ViewData["Title"] = "Admin Paneli";
+    var users = ViewBag.Users as List<User> ?? new List<User>();
+    var searchUsers = ViewBag.SearchUsers as List<User> ?? new List<User>();
+    var searchListings = ViewBag.SearchListings as List<Listing> ?? new List<Listing>();
+    var activeTab = ViewBag.ActiveTab as string ?? "overview";
+    var totalRevenue = (decimal)(ViewBag.TotalRevenuePotential ?? 0m);
+    var avgPrice = (decimal)(ViewBag.AverageListingPrice ?? 0m);
+    var topCities = ViewBag.TopCities as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    var rentalRate = (int)(ViewBag.RentalRate ?? 0);
+    var approvalRate = (int)(ViewBag.ApprovalRate ?? 0);
+    var now = DateTime.Now;
+}
+
+@if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
+{
+    <div class="admin-toast admin-toast-success">
+        <span class="admin-toast-icon">✓</span>
+        <span>@success</span>
+    </div>
+}
+@if (TempData["Error"] is string error && !string.IsNullOrWhiteSpace(error))
+{
+    <div class="admin-toast admin-toast-error">
+        <span class="admin-toast-icon">✕</span>
+        <span>@error</span>
+    </div>
+}
+
+<div class="adm">
+
+    @* ═══ HEADER ═══════════════════════════════════════════════════════════ *@
+    <header class="adm-header">
+        <div class="adm-header-left">
+            <div class="adm-breadcrumb">
+                <span class="adm-breadcrumb-root">Degerliyuvam</span>
+                <span class="adm-breadcrumb-sep">·</span>
+                <span class="adm-breadcrumb-page">Yönetim Paneli</span>
+            </div>
+            <h1 class="adm-title">Admin Paneli</h1>
+            <p class="adm-subtitle">@now.ToString("dd MMMM yyyy, dddd", new System.Globalization.CultureInfo("tr-TR")) · Platforma genel bakış</p>
+        </div>
+        <div class="adm-header-actions">
+            <a asp-controller="Listings" asp-action="Create" class="adm-btn adm-btn-primary">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/></svg>
+                Yeni İlan Ekle
+            </a>
+            <a href="?tab=users" class="adm-btn adm-btn-ghost">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                Kullanıcı Yönetimi
+            </a>
+        </div>
+    </header>
+
+    @* ═══ KPI GRID ═══════════════════════════════════════════════════════ *@
+    <div class="adm-kpi-grid">
+        <div class="adm-kpi-card adm-kpi-blue">
+            <div class="adm-kpi-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div class="adm-kpi-body">
+                <div class="adm-kpi-val">@ViewBag.TotalListings</div>
+                <div class="adm-kpi-label">Toplam İlan</div>
+                <div class="adm-kpi-sub">@ViewBag.NewListingsThisMonth bu ay yeni</div>
+            </div>
+            <div class="adm-kpi-bar" style="width:100%"></div>
+        </div>
+        <div class="adm-kpi-card adm-kpi-green">
+            <div class="adm-kpi-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div class="adm-kpi-body">
+                <div class="adm-kpi-val">@ViewBag.ActiveListings</div>
+                <div class="adm-kpi-label">Aktif İlan</div>
+                <div class="adm-kpi-sub">@rentalRate% kiralama oranı</div>
+            </div>
+            <div class="adm-kpi-bar" style="width:@rentalRate%"></div>
+        </div>
+        <div class="adm-kpi-card adm-kpi-gold">
+            <div class="adm-kpi-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div class="adm-kpi-body">
+                <div class="adm-kpi-val">@(totalRevenue >= 1000000 ? (totalRevenue/1000000m).ToString("N1") + "M" : totalRevenue >= 1000 ? (totalRevenue/1000m).ToString("N0") + "K" : totalRevenue.ToString("N0"))</div>
+                <div class="adm-kpi-label">Aylık Gelir Potansiyeli (TL)</div>
+                <div class="adm-kpi-sub">Ort. @avgPrice.ToString("N0") TL / ilan</div>
+            </div>
+            <div class="adm-kpi-bar" style="width:78%"></div>
+        </div>
+        <div class="adm-kpi-card adm-kpi-purple">
+            <div class="adm-kpi-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div class="adm-kpi-body">
+                <div class="adm-kpi-val">@ViewBag.TotalUsers</div>
+                <div class="adm-kpi-label">Kayıtlı Üye</div>
+                <div class="adm-kpi-sub">@ViewBag.TotalAdmins admin · @(ViewBag.TotalUsers - ViewBag.TotalAdmins) müşteri</div>
+            </div>
+            <div class="adm-kpi-bar" style="width:@approvalRate%"></div>
+        </div>
+        <div class="adm-kpi-card @(((int)(ViewBag.PendingSellers ?? 0)) > 0 ? "adm-kpi-warn" : "adm-kpi-muted")">
+            <div class="adm-kpi-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="adm-kpi-body">
+                <div class="adm-kpi-val">@ViewBag.PendingSellers</div>
+                <div class="adm-kpi-label">Onay Bekleyen Satıcı</div>
+                <div class="adm-kpi-sub">@(((int)(ViewBag.PendingSellers ?? 0)) > 0 ? "Aksiyon gerekiyor" : "Tüm onaylar tamam")</div>
+            </div>
+            <div class="adm-kpi-bar" style="width:@(((int)(ViewBag.PendingSellers??0))>0?60:0)%"></div>
+        </div>
+        <div class="adm-kpi-card adm-kpi-teal">
+            <div class="adm-kpi-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="adm-kpi-body">
+                <div class="adm-kpi-val">@ViewBag.RentedListings</div>
+                <div class="adm-kpi-label">Kiralanan</div>
+                <div class="adm-kpi-sub">@ViewBag.AdminRecommendedCount admin önerisi aktif</div>
+            </div>
+            <div class="adm-kpi-bar" style="width:@(ViewBag.TotalListings > 0 ? (int)((double)(int)ViewBag.RentedListings / (double)(int)ViewBag.TotalListings * 100) : 0)%"></div>
+        </div>
+    </div>
+
+    @* ═══ TABS ══════════════════════════════════════════════════════════ *@
+    <nav class="adm-tabs">
+        <a href="?tab=overview" class="adm-tab @(activeTab=="overview"?"adm-tab-active":"")">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg>
+            Genel Bakış
+        </a>
+        <a href="?tab=listings" class="adm-tab @(activeTab=="listings"?"adm-tab-active":"")">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+            İlanlar
+            <span class="adm-tab-badge">@ViewBag.TotalListings</span>
+        </a>
+        <a href="?tab=users" class="adm-tab @(activeTab=="users"?"adm-tab-active":"")">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+            Kullanıcılar
+            <span class="adm-tab-badge">@ViewBag.TotalUsers</span>
+            @if (((int)(ViewBag.PendingSellers ?? 0)) > 0)
+            {
+                <span class="adm-tab-badge adm-tab-badge-warn">@ViewBag.PendingSellers</span>
+            }
+        </a>
+        <a href="?tab=search" class="adm-tab @(activeTab=="search"?"adm-tab-active":"")">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+            Arama
+        </a>
+    </nav>
+
+    @* ═══ TAB: GENEL BAKIŞ ═════════════════════════════════════════════ *@
+    @if (activeTab == "overview")
+    {
+        <div class="adm-body">
+            <div class="adm-overview-grid">
+
+                @* Sol kolon: Son ilanlar *@
+                <div class="adm-panel">
+                    <div class="adm-panel-head">
+                        <h2 class="adm-panel-title">Son Eklenen İlanlar</h2>
+                        <a href="?tab=listings" class="adm-link">Tümünü Gör →</a>
+                    </div>
+                    <div class="adm-panel-body">
+                        @foreach (var item in Model.Take(6))
+                        {
+                            <div class="adm-listing-row">
+                                <img src="@item.ImageUrl" alt="@item.Title" class="adm-listing-thumb" loading="lazy" />
+                                <div class="adm-listing-info">
+                                    <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="adm-listing-title">@item.Title</a>
+                                    <div class="adm-listing-meta">
+                                        <span>@item.Province / @item.District</span>
+                                        <span>·</span>
+                                        <span>@item.RoomCount</span>
+                                        <span>·</span>
+                                        <span class="adm-listing-price">@item.MonthlyPrice.ToString("N0") TL</span>
+                                    </div>
+                                    <div class="adm-listing-owner">@item.OwnerName · @item.CreatedAt.ToString("dd.MM.yyyy")</div>
+                                </div>
+                                <div class="adm-listing-status">
+                                    @if (item.IsRented)
+                                    {
+                                        <span class="adm-badge adm-badge-rented">Kiralık</span>
+                                    }
+                                    else if (item.IsAdminRecommended)
+                                    {
+                                        <span class="adm-badge adm-badge-recommended">★ Önerilen</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="adm-badge adm-badge-active">Aktif</span>
+                                    }
+                                </div>
+                                <a asp-controller="Listings" asp-action="Edit" asp-route-id="@item.Id" class="adm-row-edit">Düzenle</a>
+                            </div>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <div class="adm-empty">Henüz ilan yok.</div>
+                        }
+                    </div>
+                </div>
+
+                @* Sağ kolon: Hızlı istatistikler + şehir dağılımı *@
+                <div class="adm-side-col">
+
+                    @* Hızlı işlemler *@
+                    <div class="adm-panel adm-quick-actions">
+                        <div class="adm-panel-head">
+                            <h2 class="adm-panel-title">Hızlı İşlemler</h2>
+                        </div>
+                        <div class="adm-panel-body adm-qa-grid">
+                            <a asp-controller="Listings" asp-action="Create" class="adm-qa-btn adm-qa-primary">
+                                <span class="adm-qa-icon">+</span>
+                                <span>Yeni İlan</span>
+                            </a>
+                            <a href="?tab=users" class="adm-qa-btn">
+                                <span class="adm-qa-icon">•</span>
+                                <span>Kullanıcılar</span>
+                            </a>
+                            <a href="?tab=listings&listingStatus=active" class="adm-qa-btn">
+                                <span class="adm-qa-icon">•</span>
+                                <span>Aktif İlanlar</span>
+                            </a>
+                            <a href="?tab=listings&listingStatus=rented" class="adm-qa-btn">
+                                <span class="adm-qa-icon">•</span>
+                                <span>Kiralananlar</span>
+                            </a>
+                            <a href="?tab=users&userSearch=" class="adm-qa-btn @(((int)(ViewBag.PendingSellers??0))>0?"adm-qa-warn":"")">
+                                <span class="adm-qa-icon">⚠</span>
+                                <span>@ViewBag.PendingSellers Onay Bekliyor</span>
+                            </a>
+                            <a asp-controller="Listings" asp-action="Index" class="adm-qa-btn">
+                                <span class="adm-qa-icon">•</span>
+                                <span>Tüm İlanlar</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    @* Platform Özeti *@
+                    <div class="adm-panel">
+                        <div class="adm-panel-head">
+                            <h2 class="adm-panel-title">Platform Özeti</h2>
+                        </div>
+                        <div class="adm-panel-body">
+                            <div class="adm-stat-list">
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Kiralama Oranı</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill" style="width:@rentalRate%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">%@rentalRate</span>
+                                </div>
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Satıcı Onay Oranı</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill adm-bar-green" style="width:@approvalRate%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">%@approvalRate</span>
+                                </div>
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Admin Önerilen İlan</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill adm-bar-gold" style="width:@(ViewBag.TotalListings>0?(int)((double)(int)ViewBag.AdminRecommendedCount/(double)(int)ViewBag.TotalListings*100):0)%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">@ViewBag.AdminRecommendedCount</span>
+                                </div>
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Günün Tavsiyesi</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill adm-bar-teal" style="width:@(ViewBag.TotalListings>0?(int)((double)(int)ViewBag.DailyRecommendedCount/(double)(int)ViewBag.TotalListings*100):0)%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">@ViewBag.DailyRecommendedCount</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Şehir dağılımı *@
+                    @if (topCities.Any())
+                    {
+                        <div class="adm-panel">
+                            <div class="adm-panel-head">
+                                <h2 class="adm-panel-title">İlan Dağılımı (Şehir)</h2>
+                            </div>
+                            <div class="adm-panel-body">
+                                @foreach (var c in topCities)
+                                {
+                                    <div class="adm-city-row">
+                                        <span class="adm-city-name">@c.City</span>
+                                        <div class="adm-city-bar-wrap">
+                                            <div class="adm-city-bar" style="width:@(Model.Count > 0 ? (int)((double)c.Count/(double)(int)ViewBag.TotalListings*100) : 0)%"></div>
+                                        </div>
+                                        <span class="adm-city-count">@c.Count ilan</span>
+                                        <span class="adm-city-price">@((int)c.AvgPrice/1000)K TL</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ═══ TAB: İLANLAR ════════════════════════════════════════════════ *@
+    @if (activeTab == "listings")
+    {
+        <div class="adm-body">
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <h2 class="adm-panel-title">İlan Yönetimi</h2>
+                    <a asp-controller="Listings" asp-action="Create" class="adm-btn adm-btn-primary adm-btn-sm">+ Yeni İlan</a>
+                </div>
+
+                @* Filtreler *@
+                <form method="get" class="adm-filters">
+                    <input type="hidden" name="tab" value="listings" />
+                    <div class="adm-filter-row">
+                        <div class="adm-filter-search">
+                            <svg class="adm-filter-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                            <input type="text" name="listingSearch" value="@ViewBag.ListingSearch" placeholder="Başlık, şehir veya satıcı ara..." class="adm-filter-input" />
+                        </div>
+                        @{ var curStatus = ViewBag.ListingStatus as string ?? ""; }
+                        <select name="listingStatus" class="adm-filter-select">
+                            <option value="">Tüm Durumlar</option>
+                            @if (curStatus == "active")  { <option value="active" selected>Aktif</option>  } else { <option value="active">Aktif</option> }
+                            @if (curStatus == "rented")  { <option value="rented" selected>Kiralandi</option> } else { <option value="rented">Kiralandi</option> }
+                        </select>
+                        @{ var curSort = ViewBag.Sort as string ?? ""; }
+                        <select name="sort" class="adm-filter-select">
+                            @if (curSort == "" || curSort == "newest") { <option value="newest" selected>En Yeni</option> } else { <option value="newest">En Yeni</option> }
+                            @if (curSort == "oldest")     { <option value="oldest" selected>En Eski</option>       } else { <option value="oldest">En Eski</option> }
+                            @if (curSort == "price_desc") { <option value="price_desc" selected>Fiyat (Yüksek)</option> } else { <option value="price_desc">Fiyat (Yüksek)</option> }
+                            @if (curSort == "price_asc")  { <option value="price_asc" selected>Fiyat (Düşük)</option>  } else { <option value="price_asc">Fiyat (Düşük)</option> }
+                        </select>
+                        <input type="date" name="dateFrom" value="@ViewBag.DateFrom" class="adm-filter-date" />
+                        <input type="date" name="dateTo" value="@ViewBag.DateTo" class="adm-filter-date" />
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filtrele</button>
+                        <a href="?tab=listings" class="adm-btn adm-btn-ghost adm-btn-sm">Sıfırla</a>
+                    </div>
+                </form>
+
+                <div class="adm-result-info">@Model.Count ilan listeleniyor</div>
+
+                @* Tablo *@
+                <div class="adm-table-wrap">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th>İlan</th>
+                                <th>Konum</th>
+                                <th>Tür / Oda</th>
+                                <th>Fiyat</th>
+                                <th>Durum</th>
+                                <th>Satıcı</th>
+                                <th>Tarih</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="adm-table-listing">
+                                            <img src="@item.ImageUrl" alt="@item.Title" class="adm-table-thumb" loading="lazy" />
+                                            <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="adm-table-listing-title">@item.Title</a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="adm-table-location">
+                                            <span>@item.Province</span>
+                                            <span class="adm-muted">@item.District</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="adm-table-type">
+                                            <span>@item.PropertyType</span>
+                                            <span class="adm-muted">@item.RoomCount</span>
+                                        </div>
+                                    </td>
+                                    <td class="adm-table-price">@item.MonthlyPrice.ToString("N0") TL</td>
+                                    <td>
+                                        @if (item.IsRented)
+                                        {
+                                            <span class="adm-badge adm-badge-rented">Kiralık</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="adm-badge adm-badge-active">Aktif</span>
+                                        }
+                                        @if (item.IsAdminRecommended) { <span class="adm-badge adm-badge-gold">★</span> }
+                                        @if (item.IsDailyRecommended) { <span class="adm-badge adm-badge-teal">Günün</span> }
+                                    </td>
+                                    <td>
+                                        <a asp-controller="Profiles" asp-action="Seller" asp-route-id="@item.OwnerUserId" class="adm-table-seller">@item.OwnerName</a>
+                                    </td>
+                                    <td class="adm-muted adm-table-date">@item.CreatedAt.ToString("dd.MM.yy")</td>
+                                    <td>
+                                        <div class="adm-table-actions">
+                                            <a class="adm-action-btn adm-action-edit" asp-controller="Listings" asp-action="Edit" asp-route-id="@item.Id" title="Düzenle">
+                                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                                            </a>
+                                            <form asp-controller="Listings" asp-action="ToggleAdminRecommendation" method="post" style="display:inline;">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <button type="submit" class="adm-action-btn @(item.IsAdminRecommended ? "adm-action-active" : "")" title="@(item.IsAdminRecommended ? "Öneriyi Kaldır" : "Admin Öner")">★</button>
+                                            </form>
+                                            <form asp-controller="Listings" asp-action="ToggleDailyRecommendation" method="post" style="display:inline;">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <button type="submit" class="adm-action-btn @(item.IsDailyRecommended ? "adm-action-teal" : "")" title="@(item.IsDailyRecommended ? "Günlükten Kaldır" : "Günün Tavsiyesi")">☀</button>
+                                            </form>
+                                            <form asp-controller="Listings" asp-action="Delete" method="post" style="display:inline;" onsubmit="return confirm('@item.Title adlı ilanı silmek istediğinize emin misiniz?')">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <button type="submit" class="adm-action-btn adm-action-delete" title="Sil">
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm3 2v8h2v-8H9Zm4 0v8h2v-8h-2Z" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (!Model.Any())
+                {
+                    <div class="adm-empty">Filtrelerle eşleşen ilan bulunamadı.</div>
+                }
+            </div>
+        </div>
+    }
+
+    @* ═══ TAB: KULLANICILAR ════════════════════════════════════════════ *@
+    @if (activeTab == "users")
+    {
+        <div class="adm-body">
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <h2 class="adm-panel-title">Kullanıcı Yönetimi</h2>
+                    @if (((int)(ViewBag.PendingSellers ?? 0)) > 0)
+                    {
+                        <span class="adm-badge adm-badge-warn">@ViewBag.PendingSellers onay bekliyor</span>
+                    }
+                </div>
+
+                <form method="get" class="adm-filters">
+                    <input type="hidden" name="tab" value="users" />
+                    <div class="adm-filter-row">
+                        <div class="adm-filter-search">
+                            <svg class="adm-filter-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                            <input type="text" name="userSearch" value="@ViewBag.UserSearch" placeholder="Ad, soyad veya e-posta ara..." class="adm-filter-input" />
+                        </div>
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Ara</button>
+                        <a href="?tab=users" class="adm-btn adm-btn-ghost adm-btn-sm">Temizle</a>
+                    </div>
+                </form>
+
+                <div class="adm-result-info">@users.Count kullanıcı</div>
+
+                <div class="adm-table-wrap">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th>Kullanıcı</th>
+                                <th>E-posta</th>
+                                <th>Rol</th>
+                                <th>Satıcı Durumu</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in users)
+                            {
+                                <tr class="@(!u.IsSellerApproved && u.Role != UserRole.Admin ? "adm-row-pending" : "")">
+                                    <td>
+                                        <div class="adm-user-cell">
+                                            @if (!string.IsNullOrWhiteSpace(u.ProfileImageUrl))
+                                            {
+                                                <img src="@u.ProfileImageUrl" class="adm-user-avatar" alt="@u.FullName" />
+                                            }
+                                            else
+                                            {
+                                                <div class="adm-user-avatar adm-avatar-placeholder">@u.FullName.FirstOrDefault()</div>
+                                            }
+                                            <div class="adm-user-info">
+                                                <a asp-controller="Profiles" asp-action="Seller" asp-route-id="@u.Id" class="adm-user-name">@u.FullName</a>
+                                                <span class="adm-user-id">#@u.Id</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="adm-muted">@u.Email</td>
+                                    <td>
+                                        @if (u.Role == UserRole.Admin)
+                                        {
+                                            <span class="adm-badge adm-badge-admin">Admin</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="adm-badge adm-badge-user">Müşteri</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (u.Role == UserRole.Admin)
+                                        {
+                                            <span class="adm-badge adm-badge-muted">N/A</span>
+                                        }
+                                        else if (u.IsSellerApproved)
+                                        {
+                                            <span class="adm-badge adm-badge-active">✓ Onaylı Satıcı</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="adm-badge adm-badge-warn">⏳ Onay Bekliyor</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="adm-table-actions">
+                                            <a class="adm-action-btn adm-action-edit" asp-action="EditUser" asp-route-id="@u.Id" title="Düzenle">
+                                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                                            </a>
+                                            @if (u.Role != UserRole.Admin)
+                                            {
+                                                <form asp-action="ToggleSellerApproval" method="post" style="display:inline;">
+                                                    <input type="hidden" name="id" value="@u.Id" />
+                                                    <button type="submit" class="adm-action-btn @(u.IsSellerApproved ? "adm-action-active" : "adm-action-warn")" title="@(u.IsSellerApproved ? "Onayı Kaldır" : "Satıcı Onayla")">
+                                                        @(u.IsSellerApproved ? "✓" : "⏳")
+                                                    </button>
+                                                </form>
+                                            }
+                                            <form asp-action="ToggleAdminRole" method="post" style="display:inline;">
+                                                <input type="hidden" name="id" value="@u.Id" />
+                                                <button type="submit" class="adm-action-btn" title="@(u.Role == UserRole.Admin ? "Admin Rolü Kaldır" : "Admin Yap")">
+                                                    @(u.Role == UserRole.Admin ? "↓" : "↑")
+                                                </button>
+                                            </form>
+                                            <form asp-action="DeleteUser" method="post" style="display:inline;" onsubmit="return confirm('@u.FullName adlı kullanıcıyı silmek istediğinize emin misiniz?')">
+                                                <input type="hidden" name="id" value="@u.Id" />
+                                                <button type="submit" class="adm-action-btn adm-action-delete" title="Sil">
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm3 2v8h2v-8H9Zm4 0v8h2v-8h-2Z" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (!users.Any())
+                {
+                    <div class="adm-empty">Aramanızla eşleşen kullanıcı bulunamadı.</div>
+                }
+            </div>
+        </div>
+    }
+
+    @* ═══ TAB: ARAMA ═══════════════════════════════════════════════════ *@
+    @if (activeTab == "search")
+    {
+        <div class="adm-body">
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <h2 class="adm-panel-title">Global Arama</h2>
+                </div>
+                <form method="get" class="adm-filters">
+                    <input type="hidden" name="tab" value="search" />
+                    <div class="adm-filter-row">
+                        <div class="adm-filter-search" style="flex:1;">
+                            <svg class="adm-filter-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                            <input type="text" name="globalSearch" value="@ViewBag.GlobalSearch" placeholder="İlan başlığı, şehir, kullanıcı adı veya e-posta..." class="adm-filter-input" autofocus />
+                        </div>
+                        <button type="submit" class="adm-btn adm-btn-primary">Ara</button>
+                    </div>
+                </form>
+
+                @if (!string.IsNullOrWhiteSpace(ViewBag.GlobalSearch as string))
+                {
+                    @if (searchUsers.Any())
+                    {
+                        <h3 class="adm-search-section-title">Kullanıcılar (@searchUsers.Count)</h3>
+                        <div class="adm-table-wrap">
+                            <table class="adm-table">
+                                <thead><tr><th>Ad Soyad</th><th>E-posta</th><th>Rol</th><th>Satıcı</th><th>Git</th></tr></thead>
+                                <tbody>
+                                    @foreach (var u in searchUsers)
+                                    {
+                                        <tr>
+                                            <td><a asp-controller="Profiles" asp-action="Seller" asp-route-id="@u.Id" class="adm-table-seller">@u.FullName</a></td>
+                                            <td class="adm-muted">@u.Email</td>
+                                            <td>@(u.Role == UserRole.Admin ? "Admin" : "Müşteri")</td>
+                                            <td>@(u.IsSellerApproved ? "Onaylı" : "Bekliyor")</td>
+                                            <td>
+                                                <div class="adm-table-actions">
+                                                    <a class="adm-action-btn adm-action-edit" asp-action="EditUser" asp-route-id="@u.Id">✎</a>
+                                                    <a class="adm-action-btn" asp-controller="Profiles" asp-action="Seller" asp-route-id="@u.Id">•</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (searchListings.Any())
+                    {
+                        <h3 class="adm-search-section-title" style="margin-top:28px;">İlanlar (@searchListings.Count)</h3>
+                        <div class="adm-table-wrap">
+                            <table class="adm-table">
+                                <thead><tr><th>İlan</th><th>Konum</th><th>Fiyat</th><th>Satıcı</th><th>Git</th></tr></thead>
+                                <tbody>
+                                    @foreach (var item in searchListings)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="adm-table-listing">
+                                                    <img src="@item.ImageUrl" alt="@item.Title" class="adm-table-thumb" loading="lazy" />
+                                                    <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="adm-table-listing-title">@item.Title</a>
+                                                </div>
+                                            </td>
+                                            <td class="adm-muted">@item.Province / @item.District</td>
+                                            <td class="adm-table-price">@item.MonthlyPrice.ToString("N0") TL</td>
+                                            <td class="adm-muted">@item.OwnerName</td>
+                                            <td>
+                                                <div class="adm-table-actions">
+                                                    <a class="adm-action-btn" asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id">•</a>
+                                                    <a class="adm-action-btn adm-action-edit" asp-controller="Listings" asp-action="Edit" asp-route-id="@item.Id">✎</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (!searchUsers.Any() && !searchListings.Any())
+                    {
+                        <div class="adm-empty" style="margin-top:24px;">
+                            <div style="font-size:2.5rem;margin-bottom:10px;">•</div>
+                            <div>Aramanızla eşleşen sonuç bulunamadı.</div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="adm-search-hint">
+                        <div style="font-size:3rem;opacity:.4;">•</div>
+                        <p>İlan başlığı, şehir, kullanıcı adı veya e-posta ile arama yapabilirsiniz.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>

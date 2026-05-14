@@ -1,0 +1,328 @@
+@model ChatThreadViewModel
+@{ ViewData["Title"] = "Sohbet"; }
+
+@if (TempData["Error"] is string error && !string.IsNullOrWhiteSpace(error))
+{
+    <section class="panel toast-inline danger">@error</section>
+}
+
+<section class="panel chat-shell">
+    <div class="chat-head">
+        <h2>@Model.OtherUser.FullName ile Sohbet</h2>
+        <span class="live-state"><span class="live-dot"></span> Canli</span>
+    </div>
+
+    <div id="chatList" class="chat-list">
+        @foreach (var msg in Model.Messages)
+        {
+            var mine = msg.FromUserId == Model.CurrentUserId;
+            <div class="chat-bubble @(mine ? "mine" : "other")" data-message-id="@msg.Id">
+                <div class="chat-content">
+                    @if (msg.IsDeleted)
+                    {
+                        <p class="msg-deleted">Bu mesaj silindi.</p>
+                    }
+                    else
+                    {
+                        @if (!string.IsNullOrWhiteSpace(msg.ImageUrl))
+                        {
+                            <a href="@msg.ImageUrl" target="_blank" rel="noreferrer" class="chat-image-wrap">
+                                <img src="@msg.ImageUrl" alt="Sohbet gorseli" class="chat-image" />
+                            </a>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(msg.Content))
+                        {
+                            <p class="chat-text">@msg.Content</p>
+                        }
+                    }
+                </div>
+                <div class="chat-meta-row">
+                    <small>@msg.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") @(msg.IsEdited && !msg.IsDeleted ? "(duzenlendi)" : "")</small>
+                    @if (mine && !msg.IsDeleted)
+                    {
+                        <div class="chat-actions">
+                            <button type="button" class="chat-action-btn edit" data-action="edit" data-id="@msg.Id">Düzenle</button>
+                            <button type="button" class="chat-action-btn delete" data-action="delete" data-id="@msg.Id">Sil</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <form asp-action="Send" method="post" class="chat-form" enctype="multipart/form-data" id="chatSendForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="withUserId" value="@ViewBag.WithUserId" />
+        <div class="chat-upload-row">
+            <button type="button" class="chat-attach-btn" id="openAttachment" title="Görsel ekle">Görsel Ekle</button>
+            <input type="file" id="chatImageInput" name="imageFile" accept=".jpg,.jpeg,.png,.webp,.gif" class="chat-file-input" />
+            <span id="chatFileName" class="chat-file-name">Görsel seçilmedi</span>
+        </div>
+        <img id="chatUploadPreview" class="chat-upload-preview" alt="Yüklenen görsel önizleme" />
+        <input name="content" id="chatContentInput" placeholder="Mesajınızı yazın..." autocomplete="off" maxlength="1000" />
+        <button type="submit" class="btn-glow">Gönder</button>
+    </form>
+</section>
+
+@section Scripts {
+<script>
+(() => {
+    const withUserId = @ViewBag.WithUserId;
+    const currentUserId = @Model.CurrentUserId;
+    const container = document.getElementById('chatList');
+    const attachBtn = document.getElementById('openAttachment');
+    const imageInput = document.getElementById('chatImageInput');
+    const fileName = document.getElementById('chatFileName');
+    const uploadPreview = document.getElementById('chatUploadPreview');
+    const form = document.getElementById('chatSendForm');
+    const input = document.getElementById('chatContentInput');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    let signature = '';
+    let initialized = false;
+    let lastIncomingId = Math.max(0, ...Array.from(container.querySelectorAll('.chat-bubble.other')).map(x => Number(x.dataset.messageId || 0)));
+
+    const escapeHtml = (value) => {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    };
+
+    function isNearBottom(el) {
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    }
+
+    function playMessageSound() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(740, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(980, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            setTimeout(() => { osc.stop(); ctx.close(); }, 220);
+        } catch {}
+    }
+
+    function buildMessageHtml(m) {
+        const mine = Number(m.fromUserId) === Number(currentUserId);
+        const safeDate = escapeHtml(m.createdAt);
+        const isDeleted = Boolean(m.isDeleted);
+        const isEdited = Boolean(m.isEdited);
+        const imageHtml = !isDeleted && m.imageUrl
+            ? `<a href="${escapeHtml(m.imageUrl)}" target="_blank" rel="noreferrer" class="chat-image-wrap"><img src="${escapeHtml(m.imageUrl)}" alt="Sohbet gorseli" class="chat-image" /></a>`
+            : '';
+        const contentHtml = !isDeleted && m.content
+            ? `<p class="chat-text">${escapeHtml(m.content)}</p>`
+            : '';
+        const deletedHtml = isDeleted ? '<p class="msg-deleted">Bu mesaj silindi.</p>' : '';
+        const editedText = isEdited && !isDeleted ? ' (duzenlendi)' : '';
+
+        const actionsHtml = m.canManage && !isDeleted
+            ? `<div class="chat-actions">
+                    <button type="button" class="chat-action-btn edit" data-action="edit" data-id="${m.id}">Düzenle</button>
+                    <button type="button" class="chat-action-btn delete" data-action="delete" data-id="${m.id}">Sil</button>
+               </div>`
+            : '';
+
+        return `<div class="chat-bubble ${mine ? 'mine' : 'other'}" data-message-id="${m.id}">
+                    <div class="chat-content">${deletedHtml}${imageHtml}${contentHtml}</div>
+                    <div class="chat-meta-row">
+                        <small>${safeDate}${editedText}</small>
+                        ${actionsHtml}
+                    </div>
+                </div>`;
+    }
+
+    async function refreshConversation() {
+        try {
+            const shouldStickBottom = isNearBottom(container);
+            const res = await fetch(`/Messages/Conversation?withUserId=${withUserId}`, { cache: 'no-store' });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            const nextSignature = data.map(m => `${m.id}|${m.isDeleted ? 1 : 0}|${m.isEdited ? 1 : 0}|${m.content || ''}|${m.imageUrl || ''}`).join('~');
+            if (nextSignature === signature) {
+                initialized = true;
+                return;
+            }
+            signature = nextSignature;
+
+            container.innerHTML = data.map(buildMessageHtml).join('');
+            const latestIncoming = Math.max(0, ...data
+                .filter(m => Number(m.fromUserId) !== Number(currentUserId))
+                .map(m => Number(m.id || 0)));
+            if (initialized && latestIncoming > lastIncomingId) {
+                playMessageSound();
+            }
+            lastIncomingId = Math.max(lastIncomingId, latestIncoming);
+            initialized = true;
+
+            if (shouldStickBottom) {
+                container.scrollTop = container.scrollHeight;
+            }
+        } catch {}
+    }
+
+    async function sendMessage(event) {
+        event.preventDefault();
+        if (!form) return;
+
+        const text = (input?.value || '').trim();
+        const hasFile = Boolean(imageInput?.files?.length);
+        if (!text && !hasFile) {
+            alert('Bos mesaj gonderilemez.');
+            return;
+        }
+
+        const formData = new FormData(form);
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Gönderiliyor...';
+        }
+
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'fetch'
+                }
+            });
+
+            const payload = await res.json().catch(() => null);
+            if (!res.ok || !payload?.ok) {
+                alert(payload?.error || 'Mesaj gonderilemedi.');
+                return;
+            }
+
+            form.reset();
+            if (fileName) fileName.textContent = 'Görsel seçilmedi';
+            if (uploadPreview) {
+                uploadPreview.removeAttribute('src');
+                uploadPreview.classList.remove('show');
+            }
+            if (input) input.focus();
+            await refreshConversation();
+            container.scrollTop = container.scrollHeight;
+        } catch {
+            alert('Mesaj gonderilemedi.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Gönder';
+            }
+        }
+    }
+
+    async function updateMessage(messageId, content) {
+        const formData = new FormData();
+        formData.append('withUserId', String(withUserId));
+        formData.append('messageId', String(messageId));
+        formData.append('content', content);
+
+        const res = await fetch('/Messages/Edit', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) {
+            const payload = await res.json().catch(() => ({ error: 'Mesaj duzenlenemedi.' }));
+            alert(payload.error || 'Mesaj duzenlenemedi.');
+            return;
+        }
+
+        await refreshConversation();
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function removeMessage(messageId) {
+        const formData = new FormData();
+        formData.append('withUserId', String(withUserId));
+        formData.append('messageId', String(messageId));
+
+        const res = await fetch('/Messages/Delete', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) {
+            const payload = await res.json().catch(() => ({ error: 'Mesaj silinemedi.' }));
+            alert(payload.error || 'Mesaj silinemedi.');
+            return;
+        }
+
+        await refreshConversation();
+        container.scrollTop = container.scrollHeight;
+    }
+
+    container.addEventListener('click', async (event) => {
+        const target = event.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.getAttribute('data-action');
+        const messageId = Number(target.getAttribute('data-id') || 0);
+        if (!messageId) return;
+
+        if (action === 'delete') {
+            const approved = confirm('Bu mesaji silmek istiyor musunuz?');
+            if (!approved) return;
+            await removeMessage(messageId);
+            return;
+        }
+
+        if (action === 'edit') {
+            const bubble = target.closest('.chat-bubble');
+            const currentText = bubble?.querySelector('.chat-text')?.textContent || '';
+            const next = prompt('Mesaji duzenle', currentText);
+            if (next === null) return;
+
+            const normalized = next.trim();
+            if (!normalized) {
+                alert('Mesaj bos birakilamaz.');
+                return;
+            }
+
+            await updateMessage(messageId, normalized);
+        }
+    });
+
+    if (attachBtn && imageInput) {
+        attachBtn.addEventListener('click', () => imageInput.click());
+    }
+
+    if (imageInput) {
+        imageInput.addEventListener('change', () => {
+            const file = imageInput.files?.[0];
+            if (!file) {
+                if (fileName) fileName.textContent = 'Görsel seçilmedi';
+                if (uploadPreview) {
+                    uploadPreview.removeAttribute('src');
+                    uploadPreview.classList.remove('show');
+                }
+                return;
+            }
+
+            if (fileName) fileName.textContent = file.name;
+            if (!uploadPreview) return;
+            const objectUrl = URL.createObjectURL(file);
+            uploadPreview.src = objectUrl;
+            uploadPreview.classList.add('show');
+            uploadPreview.onload = () => URL.revokeObjectURL(objectUrl);
+        });
+    }
+
+    form?.addEventListener('submit', sendMessage);
+    refreshConversation();
+    container.scrollTop = container.scrollHeight;
+    setInterval(refreshConversation, 1000);
+})();
+</script>
+}

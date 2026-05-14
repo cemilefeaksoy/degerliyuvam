@@ -1,0 +1,168 @@
+@model List<Listing>
+@using Degerliyuvam.Models
+@{
+    ViewData["Title"] = "Ana Sayfa — Premium Emlak";
+    var featured = Model.Take(4).ToList();
+    var adminRecommended = ViewBag.AdminRecommended as List<Listing> ?? new List<Listing>();
+    var canCreateListing = Context.Session.GetInt32("UserId").HasValue;
+    var totalListings = ViewBag.TotalListings ?? 0;
+    var totalCities   = ViewBag.TotalCities   ?? 0;
+    var totalUsers    = ViewBag.TotalUsers     ?? 0;
+}
+
+<div class="home-watermark" aria-hidden="true">
+    <span class="wm-main">DEGERLIYUVAM</span>
+    <span class="wm-sub">SEÇKİN GAYRİMENKUL</span>
+</div>
+
+@* ═══ HERO ════════════════════════════════════════════════════════════════ *@
+<section class="hero-v2">
+    <div class="hero-v2-content">
+        <span class="hero-v2-kicker">TÜRKİYE'NİN SEÇKİN GAYRİMENKUL PLATFORMU</span>
+        <h1 class="hero-v2-title">Hayalinizdeki Eve<br><span class="hero-v2-accent">Kapı Aralıyoruz</span></h1>
+        <p class="hero-v2-sub">Türkiye'nin dört bir yanındaki özenle seçilmiş kiralık ve satılık emlak ilanları tek çatı altında.</p>
+
+        <form asp-controller="Listings" asp-action="Index" method="get" class="hero-search-bar">
+            <div class="hero-search-field">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                <input type="text" name="city" placeholder="Şehir (örn. İstanbul, Ankara…)" class="hero-search-input" />
+            </div>
+            <select name="purpose" class="hero-search-select">
+                <option value="">Tüm Tipler</option>
+                <option value="Kiralık">Kiralık</option>
+                <option value="Satılık">Satılık</option>
+            </select>
+            <button type="submit" class="hero-search-btn">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                İlan Ara
+            </button>
+        </form>
+
+        <div class="hero-v2-actions">
+            <a class="btn-lux" asp-controller="Listings" asp-action="Index">Tüm İlanları Gör</a>
+            @if (canCreateListing)
+            {
+                <a class="btn-lux btn-ghost" asp-controller="Listings" asp-action="Create">+ İlan Ver</a>
+            }
+        </div>
+    </div>
+
+    <div class="hero-v2-gallery">
+        @foreach (var item in featured)
+        {
+            <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="hero-v2-card tilt-card">
+                <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
+                <div class="hero-v2-card-info">
+                    <div class="hero-v2-card-price">@item.MonthlyPrice.ToString("N0") TL</div>
+                    <div class="hero-v2-card-loc">@item.Province / @item.District</div>
+                    <div class="hero-v2-card-type">@item.PropertyType · @item.RoomCount</div>
+                </div>
+                @if (item.IsAdminRecommended)
+                {
+                    <span class="hv2-badge">★ Önerilen</span>
+                }
+                @if (item.IsRented)
+                {
+                    <span class="rented-overlay">KİRALANDI</span>
+                }
+            </a>
+        }
+    </div>
+</section>
+
+@* ═══ STATS BAR ══════════════════════════════════════════════════════════ *@
+<div class="stats-bar reveal-on-scroll">
+    <div class="stats-item">
+        <span class="stats-num">@totalListings<span class="stats-plus">+</span></span>
+        <span class="stats-label">Aktif İlan</span>
+    </div>
+    <div class="stats-divider"></div>
+    <div class="stats-item">
+        <span class="stats-num">@totalCities<span class="stats-plus">+</span></span>
+        <span class="stats-label">Şehir</span>
+    </div>
+    <div class="stats-divider"></div>
+    <div class="stats-item">
+        <span class="stats-num">@totalUsers<span class="stats-plus">+</span></span>
+        <span class="stats-label">Kayıtlı Üye</span>
+    </div>
+    <div class="stats-divider"></div>
+    <div class="stats-item">
+        <span class="stats-num">%4<span class="stats-plus">+KDV</span></span>
+        <span class="stats-label">Şeffaf Komisyon</span>
+    </div>
+</div>
+
+@* ═══ ÖNERILEN İLANLAR ═══════════════════════════════════════════════════ *@
+@if (adminRecommended.Any())
+{
+    <section class="reveal-on-scroll" style="margin-top:36px;">
+        <div class="section-head">
+            <h2>Öne Çıkan İlanlar</h2>
+            <p>Uzman ekibimizin özenle seçtiği premium kiralık ve satılık mülkler.</p>
+        </div>
+        <div class="portfolio-grid">
+            @foreach (var item in adminRecommended)
+            {
+                <article class="portfolio-card reveal-on-scroll tilt-card @(item.IsAdminRecommended ? "recommended-card" : "")">
+                    <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="card-image-link">
+                        <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
+                        @if (item.IsRented) { <span class="rented-overlay">KİRALANDI</span> }
+                        @if (item.IsAdminRecommended) { <span class="admin-badge-overlay">★ Önerilen</span> }
+                    </a>
+                    <div class="portfolio-body">
+                        <div class="portfolio-type-row">
+                            <span class="portfolio-type-tag">@item.PropertyType</span>
+                            <span class="portfolio-type-tag">@item.RoomCount</span>
+                            <span class="portfolio-type-tag">@item.NetSquareMeters m²</span>
+                        </div>
+                        <h3 class="portfolio-card-title">
+                            <a class="listing-title-link" asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id">@item.Title</a>
+                        </h3>
+                        <p class="portfolio-location">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 1a5 5 0 100 10A5 5 0 008 1zm0 9a4 4 0 110-8 4 4 0 010 8z"/><circle cx="8" cy="8" r="2"/></svg>
+                            @item.Province / @item.District
+                        </p>
+                        <p class="owner-pill">
+                            İlan Sahibi: <a asp-controller="Profiles" asp-action="Seller" asp-route-id="@item.OwnerUserId">@item.OwnerName</a>
+                        </p>
+                        <div class="portfolio-foot">
+                            <div>
+                                <div class="portfolio-price">@item.MonthlyPrice.ToString("N0") TL</div>
+                                <div class="portfolio-price-label">@item.ListingPurpose</div>
+                            </div>
+                            <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="btn-lux btn-thin">Detay →</a>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+        <div style="text-align:center;margin-top:24px;">
+            <a asp-controller="Listings" asp-action="Index" class="btn-lux btn-ghost">Tüm İlanları Gör →</a>
+        </div>
+    </section>
+}
+
+@* ═══ NEDEN DEGERLIYUVAM ════════════════════════════════════════════════════ *@
+<section class="why-grid reveal-on-scroll">
+    <div class="why-card">
+        <div class="why-icon">✓</div>
+        <h3>Güvenli İşlem</h3>
+        <p>Teklif verme, kiralama, mesajlaşma ve yorum akışının tamamı tek güvenli platformda.</p>
+    </div>
+    <div class="why-card">
+        <div class="why-icon">★</div>
+        <h3>Uzman Onaylı</h3>
+        <p>Tüm ilanlar uzman ekibimiz tarafından incelenir; doğrulanmış satıcılar ile güvenle işlem yapın.</p>
+    </div>
+    <div class="why-card">
+        <div class="why-icon">%</div>
+        <h3>Satıcı Paneli</h3>
+        <p>Hangi ilanın ne zaman kiralandığını, gelen teklifleri ve dönüşüm oranlarını anlık takip edin.</p>
+    </div>
+    <div class="why-card">
+        <div class="why-icon">✉</div>
+        <h3>Anlık Mesajlaşma</h3>
+        <p>Satıcı ve alıcı arasında doğrudan, güvenli mesajlaşma sistemi ile hızlı iletişim kurun.</p>
+    </div>
+</section>

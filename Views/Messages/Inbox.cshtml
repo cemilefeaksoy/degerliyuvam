@@ -1,0 +1,42 @@
+@model InboxViewModel
+@{ ViewData["Title"] = "Mesajlar"; }
+
+<section class="panel inbox-head">
+    <h2>Mesaj Kutusu</h2>
+    <p>Son konusmalariniz burada listelenir. Yeni mesajlar kirmizi rozet ile isaretlenir.</p>
+</section>
+
+@if (!Model.Conversations.Any())
+{
+    <section class="panel empty-state">
+        <h3>Henuz mesajlasma yok</h3>
+        <p>Bir ilanin detayindan <strong>Satıcıya Mesaj At</strong> secenegi ile ilk sohbetinizi baslatabilirsiniz.</p>
+        <a class="btn-glow" asp-controller="Listings" asp-action="Index">İlanlara Don</a>
+    </section>
+}
+else
+{
+    <section class="inbox-stack">
+    @foreach (var item in Model.Conversations)
+    {
+        var initial = string.IsNullOrWhiteSpace(item.PartnerName) ? "?" : item.PartnerName.Trim()[..1].ToUpper();
+        <article class="inbox-item">
+            <a class="inbox-open" asp-action="Chat" asp-route-withUserId="@item.PartnerUserId">
+                <div class="inbox-avatar">@initial</div>
+                <div class="inbox-main">
+                    <div class="inbox-top">
+                        <h3>@item.PartnerName</h3>
+                        <span class="inbox-time">@item.LastMessageAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
+                    </div>
+                    <p class="inbox-role">@item.PartnerRole</p>
+                    <p class="inbox-last">@(item.LastFromMe ? "Siz: " : "")@item.LastMessage</p>
+                </div>
+                @if (item.UnreadCount > 0)
+                {
+                    <span class="inbox-unread-pill">@item.UnreadCount</span>
+                }
+            </a>
+        </article>
+    }
+    </section>
+}

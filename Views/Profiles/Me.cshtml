@@ -1,0 +1,90 @@
+@model ProfileEditViewModel
+@{
+    ViewData["Title"] = "Profilim";
+    var editMode = Context.Request.Query.ContainsKey("edit");
+}
+
+@if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
+{
+    <section class="panel toast-inline success">@success</section>
+}
+
+@if (!editMode)
+{
+    <section class="profile-view-shell reveal-on-scroll">
+        <div class="profile-view-card">
+            <div class="profile-view-avatar">
+                <img src="@(string.IsNullOrWhiteSpace(Model.ProfileImageUrl) ? "/img/seed-8.jpeg" : Model.ProfileImageUrl)" alt="@Model.FullName" />
+            </div>
+            <div class="profile-view-info">
+                <span class="studio-badge">Kisisel Profil</span>
+                <h1 class="profile-view-name">@Model.FullName</h1>
+                @if (!string.IsNullOrWhiteSpace(Model.Bio))
+                {
+                    <p class="profile-view-bio">@Model.Bio</p>
+                }
+                else
+                {
+                    <p class="profile-view-bio muted-italic">Henuz bir aciklama eklenmemis.</p>
+                }
+                <div class="profile-view-actions">
+                    <a href="?edit=true" class="btn-lux btn-thin">✏ Profili Düzenle</a>
+                    <a asp-controller="Listings" asp-action="MyListings" class="btn-chat">📋 İlanlarim</a>
+                    @if (Context.Session.GetString("Role") != "Admin")
+                    {
+                        <a asp-controller="Seller" asp-action="Dashboard" class="btn-edit">📊 Satıcı Paneli</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <section class="create-shell reveal-on-scroll">
+        <div class="create-hero-content">
+            <span class="studio-badge">Profil Düzenle</span>
+            <h2 style="margin:10px 0 6px; font-family:'Cormorant Garamond',serif; font-size:2rem;">Profil Bilgilerini Guncelle</h2>
+            <p class="studio-sub">Profil fotografi, isminiz ve aciklamanizi buradan duzenleyebilirsiniz.</p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="studio-form" style="margin-top:24px;">
+            <div class="studio-grid">
+                <div class="studio-col">
+                    <label>Ad Soyad</label>
+                    <input asp-for="FullName" />
+                    <span asp-validation-for="FullName" class="text-danger"></span>
+
+                    <label style="margin-top:12px;">Hakkimda</label>
+                    <textarea asp-for="Bio" placeholder="Kendinizi kisaca anlatin..." rows="4"></textarea>
+                    <span asp-validation-for="Bio" class="text-danger"></span>
+
+                    <label style="margin-top:12px;">Profil Fotoğraf URL</label>
+                    <input asp-for="ProfileImageUrl" data-image-url placeholder="https://... veya dosya yukleyin" />
+                    <span asp-validation-for="ProfileImageUrl" class="text-danger"></span>
+                </div>
+
+                <aside class="studio-preview-panel">
+                    <label class="upload-zone" for="ProfileImageFile">
+                        <span class="upload-title">Profil Resmi Yukle</span>
+                        <span class="upload-sub">JPG / PNG / WEBP, max 8MB</span>
+                        <span class="upload-pill">Dosya Seç</span>
+                        <input asp-for="ProfileImageFile" id="ProfileImageFile" type="file" accept=".jpg,.jpeg,.png,.webp" data-image-upload />
+                    </label>
+                    <span asp-validation-for="ProfileImageFile" class="text-danger"></span>
+
+                    <div class="live-preview">
+                        <p>Önizleme</p>
+                        <img id="livePreviewImage" src="@(string.IsNullOrWhiteSpace(Model.ProfileImageUrl) ? "/img/seed-8.jpeg" : Model.ProfileImageUrl)" alt="Profil Önizleme" />
+                    </div>
+                </aside>
+            </div>
+
+            <div class="actions actions-pro" style="margin-top:20px;">
+                <button type="submit" class="btn-glow btn-big">Profili Kaydet</button>
+                <a href="/Profiles/Me" class="btn-chat">Vazgec</a>
+            </div>
+            <div asp-validation-summary="All" class="text-danger"></div>
+        </form>
+    </section>
+}

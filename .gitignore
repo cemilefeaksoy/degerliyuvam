@@ -1,0 +1,5 @@
+bin/
+obj/
+.aspnet-data-protection-keys/
+*.db-shm
+*.db-wal
