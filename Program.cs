@@ -18,7 +18,7 @@ var appDataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(appDataDir);
 var dbPath = Path.Combine(appDataDir, "degerliyuvam.db");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseSqlite($"Data Source=App_Data/degerliyuvam.db"));
 builder.Services.AddScoped<AppService>();
 
 var app = builder.Build();
