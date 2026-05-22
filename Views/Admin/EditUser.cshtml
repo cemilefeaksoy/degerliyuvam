@@ -17,6 +17,10 @@
         <input asp-for="Email" />
         <span asp-validation-for="Email" class="text-danger"></span>
 
+        <label>Telefon</label>
+        <input asp-for="PhoneNumber" />
+        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+
         @if (isSuperAdmin)
         {
             <label>Rol</label>

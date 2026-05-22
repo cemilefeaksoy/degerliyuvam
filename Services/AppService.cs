@@ -130,6 +130,12 @@ public class AppService
             );
             """);
         TryExec("CREATE UNIQUE INDEX IF NOT EXISTS IX_Ratings_Listing_Renter ON Ratings(ListingId, RenterUserId);");
+        TryExec("""
+            CREATE TABLE IF NOT EXISTS AppSettings (
+                Key TEXT NOT NULL CONSTRAINT PK_AppSettings PRIMARY KEY,
+                Value TEXT NOT NULL DEFAULT ''
+            );
+            """);
     }
 
     private void AddColumnIfMissing(string tableName, string columnName, string columnDefinition)
@@ -188,6 +194,83 @@ public class AppService
         }
     }
 
+    private bool GetBooleanSetting(string key)
+    {
+        var connection = _db.Database.GetDbConnection();
+        var shouldClose = connection.State == System.Data.ConnectionState.Closed;
+
+        if (shouldClose)
+        {
+            connection.Open();
+        }
+
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Value FROM AppSettings WHERE Key = @key LIMIT 1;";
+
+            var keyParam = command.CreateParameter();
+            keyParam.ParameterName = "@key";
+            keyParam.Value = key;
+            command.Parameters.Add(keyParam);
+
+            var value = command.ExecuteScalar()?.ToString();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                connection.Close();
+            }
+        }
+    }
+
+    private void SetBooleanSetting(string key, bool value)
+    {
+        var connection = _db.Database.GetDbConnection();
+        var shouldClose = connection.State == System.Data.ConnectionState.Closed;
+
+        if (shouldClose)
+        {
+            connection.Open();
+        }
+
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO AppSettings(Key, Value)
+                VALUES(@key, @value)
+                ON CONFLICT(Key) DO UPDATE SET Value = excluded.Value;
+                """;
+
+            var keyParam = command.CreateParameter();
+            keyParam.ParameterName = "@key";
+            keyParam.Value = key;
+            command.Parameters.Add(keyParam);
+
+            var valueParam = command.CreateParameter();
+            valueParam.ParameterName = "@value";
+            valueParam.Value = value ? "1" : "0";
+            command.Parameters.Add(valueParam);
+
+            command.ExecuteNonQuery();
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                connection.Close();
+            }
+        }
+    }
+
     private void Seed()
     {
         var admin = EnsureSeedUser(
@@ -214,7 +297,13 @@ public class AppService
             "Modern residence ve deniz manzarali ilanlar.",
             "/img/seed-9.jpeg");
 
-        EnsureDemoListings(new List<User> { sellerA, sellerB }, admin.Id);
+        var isDemoSeeded = GetBooleanSetting("DemoListingsSeeded");
+        if (!isDemoSeeded)
+        {
+            EnsureDemoListings(new List<User> { sellerA, sellerB }, admin.Id);
+            SetBooleanSetting("DemoListingsSeeded", true);
+        }
+
         _db.SaveChanges();
     }
 
@@ -552,6 +641,7 @@ public class AppService
 
         user.FullName = model.FullName.Trim();
         user.Email = model.Email;
+        user.PhoneNumber = (model.PhoneNumber ?? string.Empty).Trim();
         user.Role = model.Role;
         user.Bio = model.Bio.Trim();
         user.IsSellerApproved = model.Role == UserRole.Admin || model.IsSellerApproved;
@@ -772,6 +862,15 @@ public class AppService
         _db.SaveChanges();
     }
 
+    public static bool IsSalePurposeText(string? value)
+        => string.Equals(NormalizeListingPurpose(value), "Satılık", StringComparison.Ordinal);
+
+    public static bool IsSaleListing(Listing listing)
+        => IsSalePurposeText(listing.ListingPurpose);
+
+    public static string GetClosedListingStatusLabel(Listing listing)
+        => IsSaleListing(listing) ? "Satıldı" : "Kiralandı";
+
     private static string NormalizeListingPurpose(string? value)
     {
         var raw = (value ?? string.Empty).Trim();
@@ -915,6 +1014,11 @@ public class AppService
             throw new InvalidOperationException("Bu ilan zaten kiralandi.");
         }
 
+        if (IsSaleListing(listing))
+        {
+            throw new InvalidOperationException("Satılık ilanlar kiralanamaz.");
+        }
+
         var rental = new Rental
         {
             ListingId = listingId,
@@ -931,6 +1035,40 @@ public class AppService
         return rental;
     }
 
+    private Rental CompleteSale(int listingId, int buyerUserId, int? approvedOfferId = null)
+    {
+        var listing = GetListing(listingId) ?? throw new InvalidOperationException("İlan bulunamadı.");
+
+        if (listing.OwnerUserId == buyerUserId)
+        {
+            throw new InvalidOperationException("Satıcı kendi ilanini satin alamaz.");
+        }
+
+        if (listing.IsRented)
+        {
+            throw new InvalidOperationException("Bu ilan zaten kapatildi.");
+        }
+
+        if (!IsSaleListing(listing))
+        {
+            throw new InvalidOperationException("Satis kaydi yalnizca satılık ilanlarda olusturulabilir.");
+        }
+
+        var sale = new Rental
+        {
+            ListingId = listingId,
+            RenterUserId = buyerUserId,
+            ApprovedOfferId = approvedOfferId,
+            PaymentCardLast4 = "SATIS",
+            RentedAt = DateTime.UtcNow
+        };
+
+        listing.IsRented = true;
+        listing.RentedAt = sale.RentedAt;
+        _db.Rentals.Add(sale);
+        return sale;
+    }
+
     public Offer CreateOffer(int listingId, int fromUserId, decimal amount, string note)
     {
         var listing = GetListing(listingId) ?? throw new InvalidOperationException("İlan bulunamadı.");
@@ -942,7 +1080,7 @@ public class AppService
 
         if (listing.IsRented)
         {
-            throw new InvalidOperationException("Kiralanmis ilana teklif verilemez.");
+            throw new InvalidOperationException("Bu ilana artık teklif verilemez.");
         }
 
         if (amount <= 0)
@@ -979,6 +1117,11 @@ public class AppService
         if (listing.IsRented)
         {
             throw new InvalidOperationException("Bu ilan zaten kiralandi.");
+        }
+
+        if (IsSaleListing(listing))
+        {
+            throw new InvalidOperationException("Satılık ilanlar icin kiralama talebi olusturulamaz.");
         }
 
         var hasPending = _db.Offers.Any(o =>

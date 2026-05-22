@@ -9,7 +9,7 @@ public class ProfileEditViewModel
     [Required, StringLength(80)]
     public string FullName { get; set; } = string.Empty;
 
-    [Required, StringLength(20, MinimumLength = 10)]
+    [StringLength(20, MinimumLength = 10)]
     public string PhoneNumber { get; set; } = string.Empty;
 
     [StringLength(400)]
@@ -38,6 +38,9 @@ public class UserAdminEditViewModel
 
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
+
+    [StringLength(20, MinimumLength = 10)]
+    public string PhoneNumber { get; set; } = string.Empty;
 
     public UserRole Role { get; set; } = UserRole.Customer;
     public bool IsSellerApproved { get; set; }

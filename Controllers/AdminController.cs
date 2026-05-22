@@ -668,6 +668,7 @@ public class AdminController : Controller
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
             Role = user.Role,
             IsSellerApproved = user.IsSellerApproved,
             Bio = user.Bio,

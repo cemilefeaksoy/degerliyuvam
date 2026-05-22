@@ -138,6 +138,7 @@ public class OfferDisplayViewModel
     public string FromUserName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Note { get; set; } = string.Empty;
+    public string ListingPurpose { get; set; } = string.Empty;
     public OfferType Type { get; set; }
     public OfferStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
