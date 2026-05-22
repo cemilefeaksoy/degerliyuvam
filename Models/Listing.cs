@@ -25,7 +25,7 @@ public class Listing
     public string PropertyType { get; set; } = "Daire";
 
     [Required, StringLength(20)]
-    public string ListingPurpose { get; set; } = "Kiralik";
+    public string ListingPurpose { get; set; } = "Kiralık";
 
     [Required, StringLength(40)]
     public string RoomCount { get; set; } = "2+1";

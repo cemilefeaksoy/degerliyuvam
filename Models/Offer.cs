@@ -22,7 +22,6 @@ public class Offer
     public int FromUserId { get; set; }
     public int ToOwnerUserId { get; set; }
 
-    [Range(1000, 1000000)]
     public decimal Amount { get; set; }
 
     [StringLength(600)]

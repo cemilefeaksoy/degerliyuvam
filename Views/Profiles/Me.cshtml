@@ -19,6 +19,7 @@
             <div class="profile-view-info">
                 <span class="studio-badge">Kisisel Profil</span>
                 <h1 class="profile-view-name">@Model.FullName</h1>
+                <p class="profile-view-bio"><strong>Telefon:</strong> @Model.PhoneNumber</p>
                 @if (!string.IsNullOrWhiteSpace(Model.Bio))
                 {
                     <p class="profile-view-bio">@Model.Bio</p>
@@ -55,6 +56,10 @@ else
                     <input asp-for="FullName" />
                     <span asp-validation-for="FullName" class="text-danger"></span>
 
+                    <label style="margin-top:12px;">Telefon</label>
+                    <input asp-for="PhoneNumber" placeholder="05XXXXXXXXX" />
+                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+
                     <label style="margin-top:12px;">Hakkimda</label>
                     <textarea asp-for="Bio" placeholder="Kendinizi kisaca anlatin..." rows="4"></textarea>
                     <span asp-validation-for="Bio" class="text-danger"></span>
@@ -78,6 +83,31 @@ else
                         <img id="livePreviewImage" src="@(string.IsNullOrWhiteSpace(Model.ProfileImageUrl) ? "/img/seed-8.jpeg" : Model.ProfileImageUrl)" alt="Profil Önizleme" />
                     </div>
                 </aside>
+            </div>
+
+            <div class="form-section" style="margin-top:18px;">
+                <div class="form-section-head">
+                    <span class="form-section-icon">•</span>
+                    <span class="form-section-title">Şifre Değiştir</span>
+                </div>
+                <p class="studio-sub">Degistirmek istemiyorsaniz bos birakabilirsiniz.</p>
+
+                <div class="row-2">
+                    <div>
+                        <label>Mevcut Şifre</label>
+                        <input asp-for="CurrentPassword" type="password" autocomplete="current-password" />
+                        <span asp-validation-for="CurrentPassword" class="text-danger"></span>
+                    </div>
+                    <div>
+                        <label>Yeni Şifre</label>
+                        <input asp-for="NewPassword" type="password" autocomplete="new-password" />
+                        <span asp-validation-for="NewPassword" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <label>Yeni Şifre (Tekrar)</label>
+                <input asp-for="ConfirmNewPassword" type="password" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
             </div>
 
             <div class="actions actions-pro" style="margin-top:20px;">

@@ -11,6 +11,13 @@
     var offerAcceptanceRate = totalOffers == 0 ? 0 : Math.Round((decimal)acceptedOffers / totalOffers * 100m, 1);
     var avgOffer = totalOffers == 0 ? 0m : Math.Round(Model.IncomingOffers.Average(x => x.Amount), 0);
     var rentRate = Model.TotalListings == 0 ? 0 : Math.Round((decimal)Model.RentedListings / Model.TotalListings * 100m, 0);
+    var rentalRequests = Model.IncomingOffers.Count(x => x.Type == OfferType.RentalRequest);
+    var priceOffers = Model.IncomingOffers.Count(x => x.Type == OfferType.PriceOffer);
+    var processedOffers = acceptedOffers + rejectedOffers;
+    var responseRate = totalOffers == 0 ? 0 : Math.Round((decimal)processedOffers / totalOffers * 100m, 1);
+    var currentMonth = DateTime.UtcNow;
+    var monthOfferCount = Model.IncomingOffers.Count(x => x.CreatedAt.Year == currentMonth.Year && x.CreatedAt.Month == currentMonth.Month);
+    var monthAcceptedCount = Model.IncomingOffers.Count(x => x.CreatedAt.Year == currentMonth.Year && x.CreatedAt.Month == currentMonth.Month && x.Status == OfferStatus.Accepted);
 
     var cityGroups = Model.MyListings
         .GroupBy(x => x.Province)
@@ -65,6 +72,7 @@
             {
                 <a asp-controller="Listings" asp-action="MyListings" class="btn-lux btn-thin">📋 İlanlarim</a>
             }
+            <a asp-controller="Seller" asp-action="Offers" class="btn-lux btn-thin">Gelen Teklifler</a>
             <a asp-controller="Listings" asp-action="Create" class="btn-glow">+ İlan Ver</a>
         </div>
     </div>
@@ -178,6 +186,35 @@
         </article>
     </div>
 </div>
+
+<section class="panel reveal-on-scroll" style="margin-top:20px;">
+    <div class="section-head slim">
+        <h2>Detaylı Satıcı Raporu</h2>
+        <p>Teklif tipi, dönüşüm performansı ve aylık sonuç özeti.</p>
+    </div>
+    <div class="offer-metric-row">
+        <div>
+            <span>Kiralama Talepleri</span>
+            <strong>@rentalRequests</strong>
+            <small class="adm-muted">Fiyat tekliflerinden ayrı takip edilir.</small>
+        </div>
+        <div>
+            <span>Fiyat Teklifleri</span>
+            <strong>@priceOffers</strong>
+            <small class="adm-muted">Toplam tekliflerin @((totalOffers == 0 ? 0 : Math.Round((decimal)priceOffers / totalOffers * 100m, 1)).ToString("0.0"))% kadarı.</small>
+        </div>
+        <div>
+            <span>Cevaplanma Oranı</span>
+            <strong>%@responseRate</strong>
+            <small class="adm-muted">İşlenen: @processedOffers / Toplam: @totalOffers</small>
+        </div>
+        <div>
+            <span>Bu Ay Sonuç</span>
+            <strong>@monthAcceptedCount</strong>
+            <small class="adm-muted">@monthOfferCount teklif içinden kabul edilen</small>
+        </div>
+    </div>
+</section>
 
 <section class="panel reveal-on-scroll" style="margin-top:24px;">
     <h2>İlan Performans Tablosu</h2>

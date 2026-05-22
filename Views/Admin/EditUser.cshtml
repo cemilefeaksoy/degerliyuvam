@@ -1,5 +1,8 @@
 @model UserAdminEditViewModel
-@{ ViewData["Title"] = "Kullanici Düzenle"; }
+@{
+    ViewData["Title"] = "Kullanici Düzenle";
+    var isSuperAdmin = (bool?)ViewBag.IsSuperAdmin == true;
+}
 
 <section class="form-shell reveal-on-scroll">
     <h2>Kullanici Düzenle</h2>
@@ -14,8 +17,18 @@
         <input asp-for="Email" />
         <span asp-validation-for="Email" class="text-danger"></span>
 
-        <label>Rol</label>
-        <select asp-for="Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
+        @if (isSuperAdmin)
+        {
+            <label>Rol</label>
+            <select asp-for="Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
+        }
+        else
+        {
+            <label>Rol</label>
+            <input value="@(Model.Role == UserRole.Admin ? "Admin" : "Müşteri")" disabled />
+            <input asp-for="Role" type="hidden" />
+            <p class="studio-sub">Rol degistirme yetkisi yalnizca super admindedir.</p>
+        }
 
         <label class="chk"><input asp-for="IsSellerApproved" type="checkbox" /> Satıcı Onayli</label>
 
@@ -24,6 +37,14 @@
 
         <label>Profil Fotoğraf URL</label>
         <input asp-for="ProfileImageUrl" />
+
+        <label>Yeni Şifre (opsiyonel)</label>
+        <input asp-for="NewPassword" type="password" autocomplete="new-password" />
+        <span asp-validation-for="NewPassword" class="text-danger"></span>
+
+        <label>Yeni Şifre (Tekrar)</label>
+        <input asp-for="ConfirmNewPassword" type="password" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
 
         <div class="actions actions-pro">
             <button type="submit" class="btn-glow">Kaydet</button>

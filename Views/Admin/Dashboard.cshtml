@@ -1,5 +1,6 @@
 @model List<Listing>
 @using Degerliyuvam.Models
+@using Degerliyuvam.ViewModels
 @{
     ViewData["Title"] = "Admin Paneli";
     var users = ViewBag.Users as List<User> ?? new List<User>();
@@ -9,9 +10,24 @@
     var totalRevenue = (decimal)(ViewBag.TotalRevenuePotential ?? 0m);
     var avgPrice = (decimal)(ViewBag.AverageListingPrice ?? 0m);
     var topCities = ViewBag.TopCities as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    var topSellers = ViewBag.TopSellers as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
     var rentalRate = (int)(ViewBag.RentalRate ?? 0);
     var approvalRate = (int)(ViewBag.ApprovalRate ?? 0);
+    var totalOffers = (int)(ViewBag.TotalOffers ?? 0);
+    var pendingOffers = (int)(ViewBag.PendingOffers ?? 0);
+    var acceptedOffers = (int)(ViewBag.AcceptedOffers ?? 0);
+    var rejectedOffers = (int)(ViewBag.RejectedOffers ?? 0);
+    var totalMessages = (int)(ViewBag.TotalMessages ?? 0);
+    var unreadMessages = (int)(ViewBag.UnreadMessages ?? 0);
+    var totalRatings = (int)(ViewBag.TotalRatings ?? 0);
+    var avgListingRating = (double)(ViewBag.AverageListingRating ?? 0d);
+    var avgSellerRating = (double)(ViewBag.AverageSellerRating ?? 0d);
+    var thisMonthOffers = (int)(ViewBag.ThisMonthOffers ?? 0);
+    var thisMonthRentals = (int)(ViewBag.ThisMonthRentals ?? 0);
+    var isSuperAdmin = (bool?)(ViewBag.IsSuperAdmin) == true;
+    var superAdminEmail = (ViewBag.SuperAdminEmail as string ?? "mobieefe@gmail.com").Trim();
     var now = DateTime.Now;
+    var report = ViewBag.Report as AdminReportsViewModel ?? new AdminReportsViewModel();
 }
 
 @if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
@@ -46,6 +62,9 @@
             <a asp-controller="Listings" asp-action="Create" class="adm-btn adm-btn-primary">
                 <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/></svg>
                 Yeni İlan Ekle
+            </a>
+            <a asp-action="ExportReportPdf" class="adm-btn adm-btn-primary">
+                PDF Rapor İndir
             </a>
             <a href="?tab=users" class="adm-btn adm-btn-ghost">
                 <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
@@ -147,6 +166,10 @@
         <a href="?tab=search" class="adm-tab @(activeTab=="search"?"adm-tab-active":"")">
             <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
             Arama
+        </a>
+        <a href="?tab=reports" class="adm-tab @(activeTab=="reports"?"adm-tab-active":"")">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 3h14v2H3V3zm0 4h14v2H3V7zm0 4h14v2H3v-2zm0 4h9v2H3v-2z"/></svg>
+            Raporlar
         </a>
     </nav>
 
@@ -277,6 +300,45 @@
                         </div>
                     </div>
 
+                    <div class="adm-panel">
+                        <div class="adm-panel-head">
+                            <h2 class="adm-panel-title">Etkileşim Özeti</h2>
+                            <a href="?tab=reports" class="adm-link">Detaylı Rapor →</a>
+                        </div>
+                        <div class="adm-panel-body">
+                            <div class="adm-stat-list">
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Toplam Teklif</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill adm-bar-gold" style="width:@(totalOffers == 0 ? 0 : (int)Math.Min(100, (double)pendingOffers / Math.Max(1, totalOffers) * 100))%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">@totalOffers</span>
+                                </div>
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Bu Ay Teklif / Kiralama</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill adm-bar-teal" style="width:@(thisMonthOffers == 0 ? 0 : (int)Math.Min(100, (double)thisMonthRentals / Math.Max(1, thisMonthOffers) * 100))%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">@thisMonthOffers / @thisMonthRentals</span>
+                                </div>
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Mesajlar</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill adm-bar-green" style="width:@(totalMessages == 0 ? 0 : (int)Math.Min(100, (double)unreadMessages / Math.Max(1, totalMessages) * 100))%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">@totalMessages</span>
+                                </div>
+                                <div class="adm-stat-item">
+                                    <span class="adm-stat-label">Puan Ort. (İlan / Satıcı)</span>
+                                    <div class="adm-stat-bar-wrap">
+                                        <div class="adm-stat-bar-fill" style="width:@Math.Min(100, (avgListingRating / 5d) * 100)%"></div>
+                                    </div>
+                                    <span class="adm-stat-val">@avgListingRating.ToString("0.0") / @avgSellerRating.ToString("0.0")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     @* Şehir dağılımı *@
                     @if (topCities.Any())
                     {
@@ -340,16 +402,29 @@
                         <input type="date" name="dateTo" value="@ViewBag.DateTo" class="adm-filter-date" />
                         <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filtrele</button>
                         <a href="?tab=listings" class="adm-btn adm-btn-ghost adm-btn-sm">Sıfırla</a>
+                        <a asp-action="ExportReportPdf"
+                           asp-route-listingSearch="@ViewBag.ListingSearch"
+                           asp-route-listingStatus="@ViewBag.ListingStatus"
+                           asp-route-sort="@ViewBag.Sort"
+                           asp-route-dateFrom="@ViewBag.DateFrom"
+                           asp-route-dateTo="@ViewBag.DateTo"
+                           class="adm-btn adm-btn-primary adm-btn-sm">PDF</a>
                     </div>
                 </form>
 
                 <div class="adm-result-info">@Model.Count ilan listeleniyor</div>
+                <form asp-action="BulkDeleteListings" method="post" id="bulkDeleteForm" class="adm-bulk-actions" onsubmit="return confirm('Seçili ilanları silmek istediğinize emin misiniz?');">
+                    <button type="submit" id="bulkDeleteBtn" class="adm-btn adm-btn-sm adm-btn-danger" disabled>Seçili İlanları Sil</button>
+                </form>
 
                 @* Tablo *@
                 <div class="adm-table-wrap">
                     <table class="adm-table">
                         <thead>
                             <tr>
+                                <th>
+                                    <input type="checkbox" id="admSelectAllListings" title="Tümünü seç" />
+                                </th>
                                 <th>İlan</th>
                                 <th>Konum</th>
                                 <th>Tür / Oda</th>
@@ -364,6 +439,9 @@
                             @foreach (var item in Model)
                             {
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" name="listingIds" value="@item.Id" form="bulkDeleteForm" class="adm-listing-check" />
+                                    </td>
                                     <td>
                                         <div class="adm-table-listing">
                                             <img src="@item.ImageUrl" alt="@item.Title" class="adm-table-thumb" loading="lazy" />
@@ -442,6 +520,7 @@
             <div class="adm-panel">
                 <div class="adm-panel-head">
                     <h2 class="adm-panel-title">Kullanıcı Yönetimi</h2>
+                    <a asp-action="CreateUser" class="adm-btn adm-btn-primary adm-btn-sm">+ Kullanıcı Ekle</a>
                     @if (((int)(ViewBag.PendingSellers ?? 0)) > 0)
                     {
                         <span class="adm-badge adm-badge-warn">@ViewBag.PendingSellers onay bekliyor</span>
@@ -476,6 +555,7 @@
                         <tbody>
                             @foreach (var u in users)
                             {
+                                var isRowSuperAdmin = string.Equals((u.Email ?? string.Empty).Trim(), superAdminEmail, StringComparison.OrdinalIgnoreCase);
                                 <tr class="@(!u.IsSellerApproved && u.Role != UserRole.Admin ? "adm-row-pending" : "")">
                                     <td>
                                         <div class="adm-user-cell">
@@ -495,7 +575,11 @@
                                     </td>
                                     <td class="adm-muted">@u.Email</td>
                                     <td>
-                                        @if (u.Role == UserRole.Admin)
+                                        @if (isRowSuperAdmin)
+                                        {
+                                            <span class="adm-badge adm-badge-super">Super Admin</span>
+                                        }
+                                        else if (u.Role == UserRole.Admin)
                                         {
                                             <span class="adm-badge adm-badge-admin">Admin</span>
                                         }
@@ -520,10 +604,14 @@
                                     </td>
                                     <td>
                                         <div class="adm-table-actions">
-                                            <a class="adm-action-btn adm-action-edit" asp-action="EditUser" asp-route-id="@u.Id" title="Düzenle">
-                                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                                            </a>
-                                            @if (u.Role != UserRole.Admin)
+                                            @if (!isRowSuperAdmin || isSuperAdmin)
+                                            {
+                                                <a class="adm-action-btn adm-action-edit" asp-action="EditUser" asp-route-id="@u.Id" title="Düzenle">
+                                                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                                                </a>
+                                            }
+
+                                            @if (u.Role != UserRole.Admin && (!isRowSuperAdmin || isSuperAdmin))
                                             {
                                                 <form asp-action="ToggleSellerApproval" method="post" style="display:inline;">
                                                     <input type="hidden" name="id" value="@u.Id" />
@@ -532,20 +620,28 @@
                                                     </button>
                                                 </form>
                                             }
-                                            <form asp-action="ToggleAdminRole" method="post" style="display:inline;">
-                                                <input type="hidden" name="id" value="@u.Id" />
-                                                <button type="submit" class="adm-action-btn" title="@(u.Role == UserRole.Admin ? "Admin Rolü Kaldır" : "Admin Yap")">
-                                                    @(u.Role == UserRole.Admin ? "↓" : "↑")
-                                                </button>
-                                            </form>
-                                            <form asp-action="DeleteUser" method="post" style="display:inline;" onsubmit="return confirm('@u.FullName adlı kullanıcıyı silmek istediğinize emin misiniz?')">
-                                                <input type="hidden" name="id" value="@u.Id" />
-                                                <button type="submit" class="adm-action-btn adm-action-delete" title="Sil">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm3 2v8h2v-8H9Zm4 0v8h2v-8h-2Z" />
-                                                    </svg>
-                                                </button>
-                                            </form>
+
+                                            @if (isSuperAdmin && !isRowSuperAdmin)
+                                            {
+                                                <form asp-action="ToggleAdminRole" method="post" style="display:inline;">
+                                                    <input type="hidden" name="id" value="@u.Id" />
+                                                    <button type="submit" class="adm-action-btn" title="@(u.Role == UserRole.Admin ? "Admin Rolü Kaldır" : "Admin Yap")">
+                                                        @(u.Role == UserRole.Admin ? "↓" : "↑")
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (!isRowSuperAdmin || isSuperAdmin)
+                                            {
+                                                <form asp-action="DeleteUser" method="post" style="display:inline;" onsubmit="return confirm('@u.FullName adlı kullanıcıyı silmek istediğinize emin misiniz?')">
+                                                    <input type="hidden" name="id" value="@u.Id" />
+                                                    <button type="submit" class="adm-action-btn adm-action-delete" title="Sil">
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm3 2v8h2v-8H9Zm4 0v8h2v-8h-2Z" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            }
                                         </div>
                                     </td>
                                 </tr>
@@ -660,4 +756,287 @@
         </div>
     }
 
+    @if (activeTab == "reports")
+    {
+        <div class="adm-body">
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <h2 class="adm-panel-title">Detaylı Yönetim Raporları</h2>
+                    <a asp-action="ExportReportPdf"
+                       asp-route-reportStart="@report.StartAt"
+                       asp-route-reportEnd="@report.EndAt"
+                       asp-route-reportSellerId="@report.SellerUserId"
+                       asp-route-reportFeature="@report.FeatureFilter"
+                       asp-route-reportEvent="@report.EventFilter"
+                       class="adm-btn adm-btn-primary adm-btn-sm">PDF Olarak İndir</a>
+                </div>
+                <div class="adm-panel-body">
+                    <form method="get" class="adm-filters">
+                        <input type="hidden" name="tab" value="reports" />
+                        <div class="adm-filter-row">
+                            <input type="datetime-local" name="reportStart" value="@report.StartAt" class="adm-filter-date" />
+                            <input type="datetime-local" name="reportEnd" value="@report.EndAt" class="adm-filter-date" />
+                            <select name="reportSellerId" class="adm-filter-select">
+                                @if (!report.SellerUserId.HasValue)
+                                {
+                                    <option value="" selected>Tüm Satıcılar</option>
+                                }
+                                else
+                                {
+                                    <option value="">Tüm Satıcılar</option>
+                                }
+                                @foreach (var seller in report.SellerOptions)
+                                {
+                                    @if (report.SellerUserId == seller.SellerId)
+                                    {
+                                        <option value="@seller.SellerId" selected>@seller.SellerName</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@seller.SellerId">@seller.SellerName</option>
+                                    }
+                                }
+                            </select>
+                            <select name="reportFeature" class="adm-filter-select">
+                                @if (report.FeatureFilter == "all") { <option value="all" selected>Özellik: Tümü</option> } else { <option value="all">Özellik: Tümü</option> }
+                                @if (report.FeatureFilter == "balcony") { <option value="balcony" selected>Balkonlu</option> } else { <option value="balcony">Balkonlu</option> }
+                                @if (report.FeatureFilter == "parking") { <option value="parking" selected>Otoparklı</option> } else { <option value="parking">Otoparklı</option> }
+                                @if (report.FeatureFilter == "elevator") { <option value="elevator" selected>Asansörlü</option> } else { <option value="elevator">Asansörlü</option> }
+                                @if (report.FeatureFilter == "insite") { <option value="insite" selected>Site İçinde</option> } else { <option value="insite">Site İçinde</option> }
+                                @if (report.FeatureFilter == "pool") { <option value="pool" selected>Havuzlu</option> } else { <option value="pool">Havuzlu</option> }
+                                @if (report.FeatureFilter == "furnished") { <option value="furnished" selected>Eşyalı</option> } else { <option value="furnished">Eşyalı</option> }
+                                @if (report.FeatureFilter == "admin_recommended") { <option value="admin_recommended" selected>Admin Önerisi</option> } else { <option value="admin_recommended">Admin Önerisi</option> }
+                                @if (report.FeatureFilter == "daily_recommended") { <option value="daily_recommended" selected>Günün Tavsiyesi</option> } else { <option value="daily_recommended">Günün Tavsiyesi</option> }
+                                @if (report.FeatureFilter == "rented") { <option value="rented" selected>Kiralanmış</option> } else { <option value="rented">Kiralanmış</option> }
+                            </select>
+                            <select name="reportEvent" class="adm-filter-select">
+                                @if (report.EventFilter == "all") { <option value="all" selected>Liste: Hepsi</option> } else { <option value="all">Liste: Hepsi</option> }
+                                @if (report.EventFilter == "offers") { <option value="offers" selected>Sadece Teklif</option> } else { <option value="offers">Sadece Teklif</option> }
+                                @if (report.EventFilter == "comments") { <option value="comments" selected>Sadece Yorum</option> } else { <option value="comments">Sadece Yorum</option> }
+                                @if (report.EventFilter == "ratings") { <option value="ratings" selected>Sadece Değerlendirme</option> } else { <option value="ratings">Sadece Değerlendirme</option> }
+                                @if (report.EventFilter == "sales") { <option value="sales" selected>Sadece Satış</option> } else { <option value="sales">Sadece Satış</option> }
+                            </select>
+                            <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Raporla</button>
+                            <a href="?tab=reports" class="adm-btn adm-btn-ghost adm-btn-sm">Sıfırla</a>
+                        </div>
+                    </form>
+
+                    <div class="offer-metric-row">
+                        <div>
+                            <span>Teklif Toplamı</span>
+                            <strong>@report.TotalOffers</strong>
+                            <small class="adm-muted">Tekil teklif veren: @report.UniqueOfferUsers</small>
+                        </div>
+                        <div>
+                            <span>Yorum Toplamı</span>
+                            <strong>@report.TotalComments</strong>
+                            <small class="adm-muted">Tekil yorumcu: @report.UniqueCommentUsers</small>
+                        </div>
+                        <div>
+                            <span>Değerlendirme</span>
+                            <strong>@report.TotalRatings</strong>
+                            <small class="adm-muted">Tekil değerlendiren: @report.UniqueRatingUsers</small>
+                        </div>
+                        <div>
+                            <span>Satış / Kiralama</span>
+                            <strong>@report.TotalSales</strong>
+                            <small class="adm-muted">Tekil alıcı: @report.UniqueBuyers</small>
+                        </div>
+                    </div>
+                    <div class="offer-metric-row" style="margin-top:14px;">
+                        <div>
+                            <span>Bu Ay Teklif</span>
+                            <strong>@report.ThisMonthOfferCount</strong>
+                        </div>
+                        <div>
+                            <span>Bu Ay Yorum</span>
+                            <strong>@report.ThisMonthCommentCount</strong>
+                        </div>
+                        <div>
+                            <span>Bu Ay Değerlendirme</span>
+                            <strong>@report.ThisMonthRatingCount</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <h2 class="adm-panel-title">Satıcı Performans Raporu</h2>
+                </div>
+                <div class="adm-table-wrap">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th>Satıcı</th>
+                                <th>İlan</th>
+                                <th>Teklif</th>
+                                <th>Kabul</th>
+                                <th>Yorum</th>
+                                <th>Değerlendirme</th>
+                                <th>Satış</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var seller in report.SellerPerformance)
+                            {
+                                <tr>
+                                    <td><a asp-controller="Profiles" asp-action="Seller" asp-route-id="@seller.SellerId" class="adm-table-seller">@seller.SellerName</a></td>
+                                    <td>@seller.ListingCount</td>
+                                    <td>@seller.OfferCount</td>
+                                    <td>@seller.AcceptedOfferCount</td>
+                                    <td>@seller.CommentCount</td>
+                                    <td>@seller.RatingCount</td>
+                                    <td>@seller.SalesCount</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @if (report.Offers.Any())
+            {
+                <div class="adm-panel">
+                    <div class="adm-panel-head">
+                        <h2 class="adm-panel-title">Teklif Listesi</h2>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Tarih</th><th>İlan</th><th>Müşteri</th><th>Satıcı</th><th>Tip</th><th>Tutar</th><th>Durum</th></tr></thead>
+                            <tbody>
+                                @foreach (var item in report.Offers.Take(200))
+                                {
+                                    <tr>
+                                        <td>@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td><a asp-controller="Listings" asp-action="Details" asp-route-id="@item.ListingId" class="adm-table-listing-title">@item.ListingTitle</a></td>
+                                        <td>@item.CustomerName</td>
+                                        <td>@item.SellerName</td>
+                                        <td>@item.OfferType</td>
+                                        <td>@item.Amount.ToString("N0") TL</td>
+                                        <td>@item.Status</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @if (report.Comments.Any())
+            {
+                <div class="adm-panel">
+                    <div class="adm-panel-head">
+                        <h2 class="adm-panel-title">Yorum Listesi</h2>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Tarih</th><th>İlan</th><th>Yorumu Yapan</th><th>Satıcı</th><th>Yorum</th></tr></thead>
+                            <tbody>
+                                @foreach (var item in report.Comments.Take(200))
+                                {
+                                    <tr>
+                                        <td>@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td><a asp-controller="Listings" asp-action="Details" asp-route-id="@item.ListingId" class="adm-table-listing-title">@item.ListingTitle</a></td>
+                                        <td>@item.AuthorName</td>
+                                        <td>@item.SellerName</td>
+                                        <td>@item.Content</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @if (report.Ratings.Any())
+            {
+                <div class="adm-panel">
+                    <div class="adm-panel-head">
+                        <h2 class="adm-panel-title">Değerlendirme Listesi</h2>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Tarih</th><th>İlan</th><th>Kiralayan</th><th>İlan Puanı</th><th>Satıcı Puanı</th><th>Yorum</th></tr></thead>
+                            <tbody>
+                                @foreach (var item in report.Ratings.Take(200))
+                                {
+                                    <tr>
+                                        <td>@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td><a asp-controller="Listings" asp-action="Details" asp-route-id="@item.ListingId" class="adm-table-listing-title">@item.ListingTitle</a></td>
+                                        <td>@item.RenterName</td>
+                                        <td>@item.ListingScore</td>
+                                        <td>@item.SellerScore</td>
+                                        <td>@item.Comment</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @if (report.Sales.Any())
+            {
+                <div class="adm-panel">
+                    <div class="adm-panel-head">
+                        <h2 class="adm-panel-title">Satış Listesi (Kim Ne Aldı)</h2>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Tarih</th><th>Müşteri</th><th>İlan</th><th>Satıcı</th><th>Tutar</th></tr></thead>
+                            <tbody>
+                                @foreach (var item in report.Sales.Take(200))
+                                {
+                                    <tr>
+                                        <td>@item.SoldAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td>@item.BuyerName</td>
+                                        <td><a asp-controller="Listings" asp-action="Details" asp-route-id="@item.ListingId" class="adm-table-listing-title">@item.ListingTitle</a></td>
+                                        <td>@item.SellerName</td>
+                                        <td>@item.Amount.ToString("N0") TL</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @if (!report.Offers.Any() && !report.Comments.Any() && !report.Ratings.Any() && !report.Sales.Any())
+            {
+                <div class="adm-panel"><div class="adm-empty">Seçilen filtrelerle listelenecek rapor verisi bulunamadı.</div></div>
+            }
+        </div>
+    }
+
 </div>
+
+@section Scripts {
+<script>
+(() => {
+    const selectAll = document.getElementById('admSelectAllListings');
+    const checks = Array.from(document.querySelectorAll('.adm-listing-check'));
+    const bulkBtn = document.getElementById('bulkDeleteBtn');
+    if (!checks.length || !bulkBtn) return;
+
+    const refresh = () => {
+        const checkedCount = checks.filter(x => x.checked).length;
+        bulkBtn.disabled = checkedCount === 0;
+        if (selectAll) {
+            selectAll.checked = checkedCount > 0 && checkedCount === checks.length;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < checks.length;
+        }
+    };
+
+    checks.forEach((check) => check.addEventListener('change', refresh));
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            checks.forEach((check) => { check.checked = selectAll.checked; });
+            refresh();
+        });
+    }
+
+    refresh();
+})();
+</script>
+}

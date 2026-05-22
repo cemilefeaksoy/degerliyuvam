@@ -1,4 +1,5 @@
 using Degerliyuvam.Services;
+using Degerliyuvam.Models;
 using Degerliyuvam.ViewModels;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -41,12 +42,14 @@ public class MessagesController : Controller
         if (other is null) return NotFound();
 
         _appService.MarkConversationAsRead(currentUserId.Value, withUserId);
+        var messages = _appService.GetConversation(currentUserId.Value, withUserId);
 
         var vm = new ChatThreadViewModel
         {
             OtherUser = other,
             CurrentUserId = currentUserId.Value,
-            Messages = _appService.GetConversation(currentUserId.Value, withUserId)
+            Messages = messages,
+            OfferActionsByMessageId = _appService.GetOfferMessageActionsForConversation(messages, currentUserId.Value)
         };
 
         ViewBag.WithUserId = withUserId;
@@ -137,6 +140,32 @@ public class MessagesController : Controller
         }
     }
 
+    [HttpPost]
+    public IActionResult RespondOffer(int withUserId, int offerId, OfferStatus status)
+    {
+        var currentUserId = AuthSession.UserId(this);
+        if (!currentUserId.HasValue) return Unauthorized(new { ok = false, error = "Giris gerekli." });
+        if (currentUserId.Value == withUserId) return BadRequest(new { ok = false, error = "Gecersiz alici." });
+
+        try
+        {
+            var offer = _appService.RespondToOfferFromMessage(currentUserId.Value, offerId, status);
+            var listing = _appService.GetListing(offer.ListingId);
+            if (listing is not null)
+            {
+                var statusText = status == OfferStatus.Accepted ? "kabul edildi" : "reddedildi";
+                var prefix = offer.Type == OfferType.RentalRequest ? "Kiralama talebiniz" : "Teklifiniz";
+                _appService.SendMessage(currentUserId.Value, offer.FromUserId, $"{listing.Title} için {prefix} {statusText}.");
+            }
+
+            return Json(new { ok = true });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { ok = false, error = ex.Message });
+        }
+    }
+
     [HttpGet]
     public IActionResult UnreadCount()
     {
@@ -179,8 +208,10 @@ public class MessagesController : Controller
         return Json(messages);
     }
 
-    private static object ProjectMessage(Degerliyuvam.Models.Message m, int currentUserId)
-        => new
+    private object ProjectMessage(Degerliyuvam.Models.Message m, int currentUserId)
+    {
+        var offerAction = _appService.GetOfferMessageAction(currentUserId, m.OfferId);
+        return new
         {
             id = m.Id,
             fromUserId = m.FromUserId,
@@ -189,8 +220,22 @@ public class MessagesController : Controller
             isDeleted = m.IsDeleted,
             isEdited = m.IsEdited,
             canManage = m.FromUserId == currentUserId,
+            offer = offerAction is null
+                ? null
+                : new
+                {
+                    offerId = offerAction.OfferId,
+                    listingId = offerAction.ListingId,
+                    listingTitle = offerAction.ListingTitle,
+                    amount = offerAction.Amount,
+                    offerType = offerAction.OfferType.ToString(),
+                    offerStatus = offerAction.OfferStatus.ToString(),
+                    canRespond = offerAction.CanRespond,
+                    statusLabel = offerAction.StatusLabel
+                },
             createdAt = m.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
         };
+    }
 
     private bool WantsJson()
         => Request.Headers.Accept.Any(x => x?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true)

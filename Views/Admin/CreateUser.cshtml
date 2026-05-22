@@ -1,0 +1,57 @@
+@model UserAdminCreateViewModel
+@{
+    ViewData["Title"] = "Kullanıcı Ekle";
+    var isSuperAdmin = (bool?)ViewBag.IsSuperAdmin == true;
+}
+
+<section class="form-shell reveal-on-scroll">
+    <h2>Yeni Kullanıcı Ekle</h2>
+    <form method="post">
+        <label>Ad Soyad</label>
+        <input asp-for="FullName" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
+
+        <label>E-posta</label>
+        <input asp-for="Email" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+
+        <label>Telefon</label>
+        <input asp-for="PhoneNumber" />
+        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+
+        <label>Şifre</label>
+        <input asp-for="Password" type="password" autocomplete="new-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+
+        <label>Şifre (Tekrar)</label>
+        <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+
+        @if (isSuperAdmin)
+        {
+            <label>Rol</label>
+            <select asp-for="Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
+        }
+        else
+        {
+            <label>Rol</label>
+            <input value="Müşteri" disabled />
+            <input asp-for="Role" type="hidden" value="Customer" />
+            <p class="studio-sub">Admin hesap olusturma yetkisi yalnizca super admindedir.</p>
+        }
+
+        <label class="chk"><input asp-for="IsSellerApproved" type="checkbox" /> Satıcı Onaylı</label>
+
+        <label>Profil Açıklaması</label>
+        <textarea asp-for="Bio"></textarea>
+
+        <label>Profil Fotoğraf URL</label>
+        <input asp-for="ProfileImageUrl" />
+
+        <div class="actions actions-pro">
+            <button type="submit" class="btn-glow">Kullanıcıyı Oluştur</button>
+            <a asp-action="Dashboard" asp-route-tab="users" class="btn-chat">Geri Dön</a>
+        </div>
+        <div asp-validation-summary="All" class="text-danger"></div>
+    </form>
+</section>

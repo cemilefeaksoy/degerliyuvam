@@ -320,7 +320,7 @@ public class ListingsController : Controller
             Province = "Istanbul",
             District = "Besiktas",
             PropertyType = "Daire",
-            ListingPurpose = "Kiralik",
+            ListingPurpose = "Kiralık",
             RoomCount = "2+1",
             GrossSquareMeters = 120,
             NetSquareMeters = 95,
@@ -756,7 +756,8 @@ public class ListingsController : Controller
             if (listing is not null)
             {
                 _appService.SendMessage(fromUserId.Value, listing.OwnerUserId,
-                    $"Yeni teklif geldi: {listing.Title} icin {model.Amount:N0} TL teklif verildi.");
+                    $"Yeni teklif geldi: {listing.Title} icin {model.Amount:N0} TL teklif verildi.",
+                    offerId: offer.Id);
             }
 
             TempData["Success"] = "Teklifiniz satıcıya iletildi.";
@@ -871,7 +872,7 @@ public class ListingsController : Controller
         model.Province = string.IsNullOrWhiteSpace(model.Province) ? "Istanbul" : model.Province.Trim();
         model.District = string.IsNullOrWhiteSpace(model.District) ? "Besiktas" : model.District.Trim();
         model.PropertyType = string.IsNullOrWhiteSpace(model.PropertyType) ? "Daire" : model.PropertyType.Trim();
-        model.ListingPurpose = string.IsNullOrWhiteSpace(model.ListingPurpose) ? "Kiralik" : model.ListingPurpose.Trim();
+        model.ListingPurpose = string.IsNullOrWhiteSpace(model.ListingPurpose) ? "Kiralık" : model.ListingPurpose.Trim();
         model.RoomCount = string.IsNullOrWhiteSpace(model.RoomCount) ? "2+1" : model.RoomCount.Trim();
         model.GrossSquareMeters = model.GrossSquareMeters <= 0 ? 120 : model.GrossSquareMeters;
         model.NetSquareMeters = model.NetSquareMeters <= 0 ? 95 : model.NetSquareMeters;

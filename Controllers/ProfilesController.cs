@@ -27,6 +27,7 @@ public class ProfilesController : Controller
         return View(new ProfileEditViewModel
         {
             FullName = user.FullName,
+            PhoneNumber = user.PhoneNumber,
             Bio = user.Bio,
             ProfileImageUrl = user.ProfileImageUrl
         });
@@ -37,6 +38,24 @@ public class ProfilesController : Controller
     {
         var userId = AuthSession.UserId(this);
         if (!userId.HasValue) return RedirectToAction("Login", "Account");
+
+        var wantsPasswordChange =
+            !string.IsNullOrWhiteSpace(model.CurrentPassword) ||
+            !string.IsNullOrWhiteSpace(model.NewPassword) ||
+            !string.IsNullOrWhiteSpace(model.ConfirmNewPassword);
+
+        if (wantsPasswordChange)
+        {
+            if (string.IsNullOrWhiteSpace(model.CurrentPassword))
+            {
+                ModelState.AddModelError(nameof(model.CurrentPassword), "Sifre degisikligi icin mevcut sifrenizi girin.");
+            }
+
+            if (string.IsNullOrWhiteSpace(model.NewPassword))
+            {
+                ModelState.AddModelError(nameof(model.NewPassword), "Yeni sifrenizi girin.");
+            }
+        }
 
         if (!ModelState.IsValid) return View(model);
 
@@ -63,10 +82,24 @@ public class ProfilesController : Controller
             imagePath = "/img/seed-8.jpeg";
         }
 
-        _appService.UpdateUserProfile(userId.Value, model.FullName, model.Bio, imagePath);
+        _appService.UpdateUserProfile(userId.Value, model.FullName, model.PhoneNumber, model.Bio, imagePath);
+        if (wantsPasswordChange)
+        {
+            try
+            {
+                _appService.ChangeOwnPassword(userId.Value, model.CurrentPassword, model.NewPassword);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(nameof(model.CurrentPassword), ex.Message);
+                return View(model);
+            }
+        }
         HttpContext.Session.SetString("UserName", model.FullName.Trim());
 
-        TempData["Success"] = "Profiliniz guncellendi.";
+        TempData["Success"] = wantsPasswordChange
+            ? "Profiliniz ve sifreniz guncellendi."
+            : "Profiliniz guncellendi.";
         return RedirectToAction(nameof(Me));
     }
 

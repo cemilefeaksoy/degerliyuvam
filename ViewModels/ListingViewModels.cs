@@ -51,7 +51,7 @@ public class ListingEditViewModel
     public string PropertyType { get; set; } = "Daire";
 
     [Required]
-    public string ListingPurpose { get; set; } = "Kiralik";
+    public string ListingPurpose { get; set; } = "Kiralık";
 
     [Required]
     public string RoomCount { get; set; } = "2+1";
@@ -109,7 +109,7 @@ public class OfferCreateViewModel
 {
     public int ListingId { get; set; }
 
-    [Range(1000, 1000000)]
+    [Range(typeof(decimal), "0.01", "999999999999")]
     public decimal Amount { get; set; }
 
     [StringLength(600)]

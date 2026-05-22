@@ -13,6 +13,7 @@ public class Message
 
     [StringLength(300)]
     public string ImageUrl { get; set; } = string.Empty;
+    public int? OfferId { get; set; }
 
     public bool IsRead { get; set; }
     public bool IsDeleted { get; set; }

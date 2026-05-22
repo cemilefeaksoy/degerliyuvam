@@ -11,6 +11,7 @@ namespace Degerliyuvam.Services;
 public class AppService
 {
     private readonly AppDbContext _db;
+    public const string SuperAdminEmail = "mobieefe@gmail.com";
 
     private static readonly Dictionary<string, List<string>> _locations = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
     {
@@ -101,6 +102,9 @@ public class AppService
             || string.Equals(trimmedInput, storedHash, StringComparison.Ordinal);
     }
 
+    private static bool IsSuperAdminEmail(string? email)
+        => string.Equals(NormalizeEmail(email ?? string.Empty), SuperAdminEmail, StringComparison.OrdinalIgnoreCase);
+
     private void EnsureSchemaUpgrades()
     {
         // Lightweight compatibility upgrade for existing SQLite files without migrations.
@@ -108,6 +112,7 @@ public class AppService
         AddColumnIfMissing("Messages", "IsDeleted", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing("Messages", "IsEdited", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing("Messages", "EditedAt", "TEXT NULL");
+        AddColumnIfMissing("Messages", "OfferId", "INTEGER NULL");
         AddColumnIfMissing("Listings", "ImageGalleryJson", "TEXT NOT NULL DEFAULT '[]'");
         AddColumnIfMissing("Users", "PhoneNumber", "TEXT NOT NULL DEFAULT ''");
         AddColumnIfMissing("Listings", "ListingPurpose", "TEXT NOT NULL DEFAULT 'Kiralık'");
@@ -399,6 +404,46 @@ public class AppService
         return user;
     }
 
+    public User CreateUserByAdmin(int actorUserId, UserAdminCreateViewModel model)
+    {
+        var actor = GetUser(actorUserId) ?? throw new InvalidOperationException("Yetkili kullanici bulunamadi.");
+        var actorIsSuperAdmin = IsSuperAdminEmail(actor.Email);
+
+        model.Email = NormalizeEmail(model.Email);
+        model.Password = NormalizePassword(model.Password);
+
+        if (_db.Users.AsEnumerable().Any(u => string.Equals(NormalizeEmail(u.Email), model.Email, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Bu e-posta zaten kayitli.");
+        }
+
+        if (model.Password.Length < 6)
+        {
+            throw new InvalidOperationException("Sifre en az 6 karakter olmalidir.");
+        }
+
+        if (model.Role == UserRole.Admin && !actorIsSuperAdmin)
+        {
+            throw new InvalidOperationException("Admin hesap olusturma yetkisi yalnizca super admindedir.");
+        }
+
+        var user = new User
+        {
+            FullName = model.FullName.Trim(),
+            Email = model.Email,
+            PhoneNumber = (model.PhoneNumber ?? string.Empty).Trim(),
+            Password = HashPassword(model.Password),
+            Role = model.Role,
+            Bio = (model.Bio ?? string.Empty).Trim(),
+            ProfileImageUrl = string.IsNullOrWhiteSpace(model.ProfileImageUrl) ? "/img/seed-8.jpeg" : model.ProfileImageUrl.Trim(),
+            IsSellerApproved = model.Role == UserRole.Admin || model.IsSellerApproved
+        };
+
+        _db.Users.Add(user);
+        _db.SaveChanges();
+        return user;
+    }
+
     public User? GetUser(int id) => _db.Users.FirstOrDefault(x => x.Id == id);
     public User? GetUserByEmail(string email)
     {
@@ -414,6 +459,16 @@ public class AppService
             .Where(x => x.Role != UserRole.Admin)
             .OrderBy(x => x.FullName)
             .ToList();
+    public bool IsSuperAdmin(int userId)
+    {
+        var user = GetUser(userId);
+        return user is not null && IsSuperAdminEmail(user.Email);
+    }
+    public List<Offer> GetOffers() => _db.Offers.OrderByDescending(x => x.CreatedAt).ToList();
+    public List<Rental> GetRentals() => _db.Rentals.OrderByDescending(x => x.RentedAt).ToList();
+    public List<Message> GetMessages() => _db.Messages.OrderByDescending(x => x.CreatedAt).ToList();
+    public List<Comment> GetComments() => _db.Comments.OrderByDescending(x => x.CreatedAt).ToList();
+    public List<Rating> GetRatings() => _db.Ratings.OrderByDescending(x => x.CreatedAt).ToList();
 
     public bool CanCreateListing(int userId)
     {
@@ -421,10 +476,11 @@ public class AppService
         return user is not null;
     }
 
-    public void UpdateUserProfile(int userId, string fullName, string bio, string? profileImageUrl)
+    public void UpdateUserProfile(int userId, string fullName, string phoneNumber, string bio, string? profileImageUrl)
     {
         var user = GetUser(userId) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
         user.FullName = fullName.Trim();
+        user.PhoneNumber = (phoneNumber ?? string.Empty).Trim();
         user.Bio = bio.Trim();
 
         if (!string.IsNullOrWhiteSpace(profileImageUrl))
@@ -440,15 +496,58 @@ public class AppService
         _db.SaveChanges();
     }
 
-    public void UpdateUserByAdmin(UserAdminEditViewModel model)
+    public void ChangeOwnPassword(int userId, string currentPassword, string newPassword)
+    {
+        var user = GetUser(userId) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
+        if (!VerifyPassword(currentPassword, user.Password))
+        {
+            throw new InvalidOperationException("Mevcut sifre hatali.");
+        }
+
+        var next = NormalizePassword(newPassword);
+        if (next.Length < 6)
+        {
+            throw new InvalidOperationException("Yeni sifre en az 6 karakter olmalidir.");
+        }
+
+        user.Password = HashPassword(next);
+        _db.SaveChanges();
+    }
+
+    public void UpdateUserByAdmin(int actorUserId, UserAdminEditViewModel model)
     {
         var user = GetUser(model.Id) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
+        var actor = GetUser(actorUserId) ?? throw new InvalidOperationException("Yetkili kullanici bulunamadi.");
+        var actorIsSuperAdmin = IsSuperAdminEmail(actor.Email);
+        var targetIsSuperAdmin = IsSuperAdminEmail(user.Email);
+
+        if (targetIsSuperAdmin && !actorIsSuperAdmin)
+        {
+            throw new InvalidOperationException("Super admin hesabi yalnizca super admin tarafindan duzenlenebilir.");
+        }
+
         model.Email = NormalizeEmail(model.Email);
+        var nextIsSuperAdmin = IsSuperAdminEmail(model.Email);
+        if (targetIsSuperAdmin && !nextIsSuperAdmin)
+        {
+            throw new InvalidOperationException("Super admin e-posta adresi degistirilemez.");
+        }
+
         if (_db.Users
             .AsEnumerable()
             .Any(x => x.Id != model.Id && string.Equals(NormalizeEmail(x.Email), model.Email, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException("Bu e-posta baska bir kullanici tarafindan kullaniliyor.");
+        }
+
+        if (!actorIsSuperAdmin && user.Role == UserRole.Admin && model.Role != UserRole.Admin)
+        {
+            throw new InvalidOperationException("Admin rolunu yalnizca super admin degistirebilir.");
+        }
+
+        if (!actorIsSuperAdmin && model.Role == UserRole.Admin && user.Role != UserRole.Admin)
+        {
+            throw new InvalidOperationException("Yeni admin atamasini yalnizca super admin yapabilir.");
         }
 
         user.FullName = model.FullName.Trim();
@@ -467,12 +566,32 @@ public class AppService
             listing.OwnerName = user.FullName;
         }
 
+        if (!string.IsNullOrWhiteSpace(model.NewPassword))
+        {
+            var nextPassword = NormalizePassword(model.NewPassword);
+            if (nextPassword.Length < 6)
+            {
+                throw new InvalidOperationException("Yeni sifre en az 6 karakter olmalidir.");
+            }
+
+            user.Password = HashPassword(nextPassword);
+        }
+
         _db.SaveChanges();
     }
 
-    public void SetSellerApproval(int userId, bool approved)
+    public void SetSellerApproval(int actorUserId, int userId, bool approved)
     {
         var user = GetUser(userId) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
+        var actor = GetUser(actorUserId) ?? throw new InvalidOperationException("Yetkili kullanici bulunamadi.");
+        var actorIsSuperAdmin = IsSuperAdminEmail(actor.Email);
+        var targetIsSuperAdmin = IsSuperAdminEmail(user.Email);
+
+        if (targetIsSuperAdmin && !actorIsSuperAdmin)
+        {
+            throw new InvalidOperationException("Super admin hesabi duzenlenemez.");
+        }
+
         if (user.Role == UserRole.Admin)
         {
             user.IsSellerApproved = true;
@@ -485,9 +604,16 @@ public class AppService
         _db.SaveChanges();
     }
 
-    public void SetAdminRole(int userId, bool makeAdmin)
+    public void SetAdminRole(int actorUserId, int userId, bool makeAdmin)
     {
+        var actor = GetUser(actorUserId) ?? throw new InvalidOperationException("Yetkili kullanici bulunamadi.");
+        if (!IsSuperAdminEmail(actor.Email))
+        {
+            throw new InvalidOperationException("Admin rol atama/kaldirma islemi yalnizca super admin tarafindan yapilabilir.");
+        }
+
         var user = GetUser(userId) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
+        var targetIsSuperAdmin = IsSuperAdminEmail(user.Email);
         if (makeAdmin)
         {
             user.Role = UserRole.Admin;
@@ -495,6 +621,11 @@ public class AppService
         }
         else
         {
+            if (targetIsSuperAdmin)
+            {
+                throw new InvalidOperationException("Super admin rolunden cikarilamaz.");
+            }
+
             if (user.Role == UserRole.Admin)
             {
                 var adminCount = _db.Users.Count(x => x.Role == UserRole.Admin);
@@ -510,10 +641,23 @@ public class AppService
         _db.SaveChanges();
     }
 
-    public void DeleteUser(int userId)
+    public void DeleteUser(int actorUserId, int userId)
     {
         var user = GetUser(userId);
         if (user is null) return;
+        var actor = GetUser(actorUserId) ?? throw new InvalidOperationException("Yetkili kullanici bulunamadi.");
+        var actorIsSuperAdmin = IsSuperAdminEmail(actor.Email);
+        var targetIsSuperAdmin = IsSuperAdminEmail(user.Email);
+
+        if (targetIsSuperAdmin)
+        {
+            throw new InvalidOperationException("Super admin hesabi silinemez.");
+        }
+
+        if (user.Role == UserRole.Admin && !actorIsSuperAdmin)
+        {
+            throw new InvalidOperationException("Admin silme islemi yalnizca super admin tarafindan yapilabilir.");
+        }
 
         if (user.Role == UserRole.Admin)
         {
@@ -588,6 +732,7 @@ public class AppService
         _ = GetUser(listing.OwnerUserId) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
 
         listing.City = BuildCity(listing.Province, listing.District);
+        listing.ListingPurpose = NormalizeListingPurpose(listing.ListingPurpose);
         listing.CreatedAt = DateTime.UtcNow;
         _db.Listings.Add(listing);
         _db.SaveChanges();
@@ -603,7 +748,7 @@ public class AppService
         existing.District = listing.District;
         existing.City = BuildCity(listing.Province, listing.District);
         existing.PropertyType = listing.PropertyType;
-        existing.ListingPurpose = listing.ListingPurpose;
+        existing.ListingPurpose = NormalizeListingPurpose(listing.ListingPurpose);
         existing.RoomCount = listing.RoomCount;
         existing.GrossSquareMeters = listing.GrossSquareMeters;
         existing.NetSquareMeters = listing.NetSquareMeters;
@@ -625,6 +770,28 @@ public class AppService
         existing.ImageGalleryJson = string.IsNullOrWhiteSpace(listing.ImageGalleryJson) ? "[]" : listing.ImageGalleryJson;
         existing.IsAdminRecommended = listing.IsAdminRecommended;
         _db.SaveChanges();
+    }
+
+    private static string NormalizeListingPurpose(string? value)
+    {
+        var raw = (value ?? string.Empty).Trim();
+        if (raw.Length == 0)
+        {
+            return "Kiralık";
+        }
+
+        var normalized = raw
+            .ToLowerInvariant()
+            .Replace('ı', 'i')
+            .Replace('ş', 's')
+            .Replace('ğ', 'g')
+            .Replace('ü', 'u')
+            .Replace('ö', 'o')
+            .Replace('ç', 'c');
+
+        return normalized.StartsWith("sat", StringComparison.Ordinal)
+            ? "Satılık"
+            : "Kiralık";
     }
 
     public List<string> GetListingImageGallery(Listing listing)
@@ -778,6 +945,11 @@ public class AppService
             throw new InvalidOperationException("Kiralanmis ilana teklif verilemez.");
         }
 
+        if (amount <= 0)
+        {
+            throw new InvalidOperationException("Teklif tutari 0'dan buyuk olmalidir.");
+        }
+
         var offer = new Offer
         {
             ListingId = listingId,
@@ -907,6 +1079,124 @@ public class AppService
 
         _db.SaveChanges();
         return offer;
+    }
+
+    public OfferMessageActionViewModel? GetOfferMessageAction(int currentUserId, int? offerId)
+    {
+        if (!offerId.HasValue)
+        {
+            return null;
+        }
+
+        var offer = _db.Offers.FirstOrDefault(o => o.Id == offerId.Value);
+        if (offer is null)
+        {
+            return null;
+        }
+
+        var listing = _db.Listings.FirstOrDefault(l => l.Id == offer.ListingId);
+        if (listing is null)
+        {
+            return null;
+        }
+
+        return new OfferMessageActionViewModel
+        {
+            OfferId = offer.Id,
+            ListingId = listing.Id,
+            ListingTitle = listing.Title,
+            Amount = offer.Amount,
+            OfferType = offer.Type,
+            OfferStatus = offer.Status,
+            CanRespond = offer.ToOwnerUserId == currentUserId && offer.Status == OfferStatus.Pending,
+            StatusLabel = offer.Type == OfferType.RentalRequest && offer.Status == OfferStatus.Accepted
+                ? "Kiralandi"
+                : offer.Status switch
+                {
+                    OfferStatus.Accepted => "Kabul Edildi",
+                    OfferStatus.Rejected => "Reddedildi",
+                    _ => "Beklemede"
+                }
+        };
+    }
+
+    public Dictionary<int, OfferMessageActionViewModel> GetOfferMessageActionsForConversation(IEnumerable<Message> messages, int currentUserId)
+    {
+        var offerIds = messages
+            .Where(m => m.OfferId.HasValue)
+            .Select(m => m.OfferId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (offerIds.Count == 0)
+        {
+            return new Dictionary<int, OfferMessageActionViewModel>();
+        }
+
+        var offers = _db.Offers
+            .Where(o => offerIds.Contains(o.Id))
+            .ToList();
+
+        if (offers.Count == 0)
+        {
+            return new Dictionary<int, OfferMessageActionViewModel>();
+        }
+
+        var listingIds = offers.Select(o => o.ListingId).Distinct().ToList();
+        var listings = _db.Listings
+            .Where(l => listingIds.Contains(l.Id))
+            .ToDictionary(l => l.Id, l => l);
+
+        var actionByOfferId = offers.ToDictionary(
+            o => o.Id,
+            o =>
+            {
+                var listing = listings.TryGetValue(o.ListingId, out var found) ? found : null;
+                return new OfferMessageActionViewModel
+                {
+                    OfferId = o.Id,
+                    ListingId = o.ListingId,
+                    ListingTitle = listing?.Title ?? "İlan",
+                    Amount = o.Amount,
+                    OfferType = o.Type,
+                    OfferStatus = o.Status,
+                    CanRespond = o.ToOwnerUserId == currentUserId && o.Status == OfferStatus.Pending,
+                    StatusLabel = o.Type == OfferType.RentalRequest && o.Status == OfferStatus.Accepted
+                        ? "Kiralandi"
+                        : o.Status switch
+                        {
+                            OfferStatus.Accepted => "Kabul Edildi",
+                            OfferStatus.Rejected => "Reddedildi",
+                            _ => "Beklemede"
+                        }
+                };
+            });
+
+        var result = new Dictionary<int, OfferMessageActionViewModel>();
+        foreach (var msg in messages)
+        {
+            if (!msg.OfferId.HasValue)
+            {
+                continue;
+            }
+
+            if (actionByOfferId.TryGetValue(msg.OfferId.Value, out var action))
+            {
+                result[msg.Id] = action;
+            }
+        }
+
+        return result;
+    }
+
+    public Offer RespondToOfferFromMessage(int currentUserId, int offerId, OfferStatus status)
+    {
+        if (status != OfferStatus.Accepted && status != OfferStatus.Rejected)
+        {
+            throw new InvalidOperationException("Teklif cevabi yalnizca kabul veya red olabilir.");
+        }
+
+        return UpdateOfferStatus(currentUserId, offerId, status);
     }
 
     public bool HasUserRentedListing(int listingId, int userId)
@@ -1082,7 +1372,7 @@ public class AppService
         _db.SaveChanges();
     }
 
-    public Message SendMessage(int fromUserId, int toUserId, string content, string? imageUrl = null)
+    public Message SendMessage(int fromUserId, int toUserId, string content, string? imageUrl = null, int? offerId = null)
     {
         var message = new Message
         {
@@ -1090,6 +1380,7 @@ public class AppService
             ToUserId = toUserId,
             Content = content.Trim(),
             ImageUrl = imageUrl?.Trim() ?? string.Empty,
+            OfferId = offerId,
             IsRead = false,
             CreatedAt = DateTime.UtcNow
         };

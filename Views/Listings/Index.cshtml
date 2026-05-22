@@ -17,6 +17,20 @@
     var pageTitle = ViewBag.ListingPageTitle as string ?? "İlan Ara & Filtrele";
     var countLabel = ViewBag.ListingPageCountLabel as string ?? "ilan bulundu";
     var isSpecialList = (ViewBag.IsMyListings as bool?) == true || (ViewBag.IsRentedListings as bool?) == true;
+
+    string NormalizePurposeText(string? purpose)
+    {
+        var raw = (purpose ?? string.Empty).Trim().ToLowerInvariant()
+            .Replace('ı', 'i')
+            .Replace('ş', 's')
+            .Replace('ğ', 'g')
+            .Replace('ü', 'u')
+            .Replace('ö', 'o')
+            .Replace('ç', 'c');
+        return raw.StartsWith("sat", StringComparison.Ordinal) ? "Satılık" : "Kiralık";
+    }
+
+    bool IsSalePurpose(Listing listing) => NormalizePurposeText(listing.ListingPurpose) == "Satılık";
 }
 
 @if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
@@ -175,6 +189,7 @@
                         <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
                         <span class="daily-badge-overlay">Günün Tavsiyesi</span>
                         @if (item.IsRented) { <span class="rented-overlay">KİRALANDI</span> }
+                        <span class="purpose-badge-overlay @(IsSalePurpose(item) ? "sale" : "rent")">@NormalizePurposeText(item.ListingPurpose).ToUpperInvariant()</span>
                     </a>
                     <div class="lux-card-body">
                         <div class="lux-card-tags">
@@ -190,7 +205,7 @@
                         <div class="lux-card-foot">
                             <div>
                                 <div class="lux-card-price">@item.MonthlyPrice.ToString("N0") TL</div>
-                                <div class="lux-card-price-label">@item.ListingPurpose</div>
+                                <div class="lux-card-price-label">@NormalizePurposeText(item.ListingPurpose)</div>
                             </div>
                             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                 <a class="btn-lux btn-thin" asp-action="Details" asp-route-id="@item.Id">Detay →</a>
@@ -228,6 +243,7 @@
                 <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
                 @if (item.IsRented) { <span class="rented-overlay">KİRALANDI</span> }
                 @if (item.IsAdminRecommended) { <span class="admin-badge-overlay">★ Önerilen</span> }
+                <span class="purpose-badge-overlay @(IsSalePurpose(item) ? "sale" : "rent")">@NormalizePurposeText(item.ListingPurpose).ToUpperInvariant()</span>
             </a>
             <div class="lux-card-body">
                 <div class="lux-card-tags">
@@ -246,7 +262,7 @@
                 <div class="lux-card-foot">
                     <div>
                         <div class="lux-card-price">@item.MonthlyPrice.ToString("N0") TL</div>
-                        <div class="lux-card-price-label">@item.ListingPurpose</div>
+                        <div class="lux-card-price-label">@NormalizePurposeText(item.ListingPurpose)</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <a class="btn-lux btn-thin" asp-action="Details" asp-route-id="@item.Id">Detay →</a>

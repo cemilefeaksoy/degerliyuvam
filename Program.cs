@@ -14,7 +14,9 @@ builder.Services
     .SetApplicationName("Degerliyuvam")
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, ".aspnet-data-protection-keys")));
 builder.Services.AddSession();
-var dbPath = Path.Combine(builder.Environment.ContentRootPath, "degerliyuvam.db");
+var appDataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
+Directory.CreateDirectory(appDataDir);
+var dbPath = Path.Combine(appDataDir, "degerliyuvam.db");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddScoped<AppService>();

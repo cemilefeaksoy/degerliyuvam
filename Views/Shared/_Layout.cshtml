@@ -47,6 +47,18 @@
             <span class="brand-bottom">SEÇKİN GAYRİMENKUL</span>
         </a>
 
+        <div class="mobile-header-actions">
+            <button type="button" class="mobile-header-btn" id="mobileNavToggle" aria-expanded="false" aria-controls="quickDockItems">Menü</button>
+            @if (isLoggedIn)
+            {
+                <button type="button" class="mobile-header-btn mobile-header-btn-profile" id="mobileProfileToggle" aria-expanded="false" aria-controls="mobileProfileSheet">Profil</button>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="mobile-header-link">Giriş</a>
+            }
+        </div>
+
         <div class="header-right">
             <a asp-controller="Home" asp-action="About" class="nav-link">HİZMETLER</a>
             <a asp-controller="Home" asp-action="Faq" class="nav-link">REHBER</a>
@@ -101,14 +113,38 @@
 
     @if (isLoggedIn)
     {
-        <aside class="quick-dock collapsed reveal-on-scroll">
-            <button type="button" class="dock-toggle" id="dockToggle">MENÜ</button>
-            <div class="quick-dock-items" id="quickDockItems">
+        <aside class="mobile-profile-sheet" id="mobileProfileSheet">
+            <a asp-controller="Profiles" asp-action="Me">Profilim</a>
+            <a asp-controller="Listings" asp-action="MyListings">İlanlarım</a>
+            <a asp-controller="Listings" asp-action="Rented">Kiraladığım İlanlar</a>
+            @if (canCreateListing)
+            {
+                <a asp-controller="Listings" asp-action="Create">+ İlan Ver</a>
+            }
+            <a asp-controller="Seller" asp-action="Dashboard">Satıcı Paneli</a>
+            <a asp-controller="Seller" asp-action="Offers">Satıcı Teklifleri</a>
+            <a asp-controller="Messages" asp-action="Inbox">Mesaj Kutusu</a>
+            @if (isAdmin)
+            {
+                <a asp-controller="Admin" asp-action="Dashboard">Admin Paneli</a>
+                <a href="/Admin/Dashboard?tab=users">Kullanıcı Yönetimi</a>
+            }
+            <a class="danger-link" asp-controller="Account" asp-action="Logout">Çıkış Yap</a>
+        </aside>
+    }
+
+    <aside class="quick-dock collapsed reveal-on-scroll" data-mobile-dock>
+        <button type="button" class="dock-toggle" id="dockToggle">MENÜ</button>
+        <div class="quick-dock-items" id="quickDockItems">
+            <a asp-controller="Home" asp-action="Index" class="dock-btn">Anasayfa</a>
+            <a asp-controller="Listings" asp-action="Index" class="dock-btn">İlanlar</a>
+            @if (isLoggedIn)
+            {
+                <a asp-controller="Profiles" asp-action="Me" class="dock-btn">Profilim</a>
                 @if (canCreateListing)
                 {
                     <a asp-controller="Listings" asp-action="Create" class="dock-btn dock-primary">+ İlan Ver</a>
                 }
-                <a asp-controller="Listings" asp-action="Index" class="dock-btn">İlanlar</a>
                 <a asp-controller="Listings" asp-action="MyListings" class="dock-btn">İlanlarım</a>
                 <a asp-controller="Listings" asp-action="Rented" class="dock-btn">Kiraladıklarım</a>
                 <a asp-controller="Seller" asp-action="Dashboard" class="dock-btn">Satıcı Paneli</a>
@@ -121,9 +157,15 @@
                     Mesajlar
                     <span id="msgUnreadBadgeDock" class="msg-badge @(unreadCount > 0 ? "show" : "")">@unreadCount</span>
                 </a>
-            </div>
-        </aside>
-    }
+                <a asp-controller="Account" asp-action="Logout" class="dock-btn">Çıkış Yap</a>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="dock-btn">Giriş Yap</a>
+                <a asp-controller="Account" asp-action="Register" class="dock-btn dock-primary">Kayıt Ol</a>
+            }
+        </div>
+    </aside>
 
     <main class="page-wrap" id="pageRoot">
         @RenderBody()

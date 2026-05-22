@@ -6,7 +6,20 @@ public class ChatThreadViewModel
 {
     public User OtherUser { get; set; } = new();
     public List<Message> Messages { get; set; } = new List<Message>();
+    public Dictionary<int, OfferMessageActionViewModel> OfferActionsByMessageId { get; set; } = new Dictionary<int, OfferMessageActionViewModel>();
     public int CurrentUserId { get; set; }
+}
+
+public class OfferMessageActionViewModel
+{
+    public int OfferId { get; set; }
+    public int ListingId { get; set; }
+    public string ListingTitle { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public OfferType OfferType { get; set; }
+    public OfferStatus OfferStatus { get; set; }
+    public bool CanRespond { get; set; }
+    public string StatusLabel { get; set; } = string.Empty;
 }
 
 public class InboxConversationItemViewModel

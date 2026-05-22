@@ -16,6 +16,7 @@
         @foreach (var msg in Model.Messages)
         {
             var mine = msg.FromUserId == Model.CurrentUserId;
+            var offerAction = Model.OfferActionsByMessageId.TryGetValue(msg.Id, out var actionValue) ? actionValue : null;
             <div class="chat-bubble @(mine ? "mine" : "other")" data-message-id="@msg.Id">
                 <div class="chat-content">
                     @if (msg.IsDeleted)
@@ -34,6 +35,21 @@
                         @if (!string.IsNullOrWhiteSpace(msg.Content))
                         {
                             <p class="chat-text">@msg.Content</p>
+                        }
+
+                        @if (offerAction is not null)
+                        {
+                            <div class="chat-offer-card">
+                                <strong>@offerAction.ListingTitle</strong>
+                                <p>@offerAction.Amount.ToString("N0") TL · @offerAction.StatusLabel</p>
+                                @if (offerAction.CanRespond)
+                                {
+                                    <div class="offer-actions" style="margin-top:8px;">
+                                        <button type="button" class="btn-edit chat-offer-accept" data-action="offer-response" data-offer-status="Accepted" data-offer-id="@offerAction.OfferId">Kabul Et</button>
+                                        <button type="button" class="btn-delete chat-offer-reject" data-action="offer-response" data-offer-status="Rejected" data-offer-id="@offerAction.OfferId">Reddet</button>
+                                    </div>
+                                }
+                            </div>
                         }
                     }
                 </div>
@@ -115,11 +131,25 @@
         const safeDate = escapeHtml(m.createdAt);
         const isDeleted = Boolean(m.isDeleted);
         const isEdited = Boolean(m.isEdited);
+        const offer = m.offer || null;
         const imageHtml = !isDeleted && m.imageUrl
             ? `<a href="${escapeHtml(m.imageUrl)}" target="_blank" rel="noreferrer" class="chat-image-wrap"><img src="${escapeHtml(m.imageUrl)}" alt="Sohbet gorseli" class="chat-image" /></a>`
             : '';
         const contentHtml = !isDeleted && m.content
             ? `<p class="chat-text">${escapeHtml(m.content)}</p>`
+            : '';
+        const offerHtml = !isDeleted && offer
+            ? `<div class="chat-offer-card">
+                    <strong>${escapeHtml(offer.listingTitle || 'Ilan')}</strong>
+                    <p>${Number(offer.amount || 0).toLocaleString('tr-TR')} TL · ${escapeHtml(offer.statusLabel || '')}</p>
+                    ${offer.canRespond
+                        ? `<div class="offer-actions" style="margin-top:8px;">
+                                <button type="button" class="btn-edit chat-offer-accept" data-action="offer-response" data-offer-status="Accepted" data-offer-id="${offer.offerId}">Kabul Et</button>
+                                <button type="button" class="btn-delete chat-offer-reject" data-action="offer-response" data-offer-status="Rejected" data-offer-id="${offer.offerId}">Reddet</button>
+                           </div>`
+                        : ''
+                    }
+               </div>`
             : '';
         const deletedHtml = isDeleted ? '<p class="msg-deleted">Bu mesaj silindi.</p>' : '';
         const editedText = isEdited && !isDeleted ? ' (duzenlendi)' : '';
@@ -132,7 +162,7 @@
             : '';
 
         return `<div class="chat-bubble ${mine ? 'mine' : 'other'}" data-message-id="${m.id}">
-                    <div class="chat-content">${deletedHtml}${imageHtml}${contentHtml}</div>
+                    <div class="chat-content">${deletedHtml}${imageHtml}${contentHtml}${offerHtml}</div>
                     <div class="chat-meta-row">
                         <small>${safeDate}${editedText}</small>
                         ${actionsHtml}
@@ -147,7 +177,7 @@
             if (!res.ok) return;
 
             const data = await res.json();
-            const nextSignature = data.map(m => `${m.id}|${m.isDeleted ? 1 : 0}|${m.isEdited ? 1 : 0}|${m.content || ''}|${m.imageUrl || ''}`).join('~');
+            const nextSignature = data.map(m => `${m.id}|${m.isDeleted ? 1 : 0}|${m.isEdited ? 1 : 0}|${m.content || ''}|${m.imageUrl || ''}|${m.offer?.offerStatus || ''}|${m.offer?.canRespond ? 1 : 0}`).join('~');
             if (nextSignature === signature) {
                 initialized = true;
                 return;
@@ -263,11 +293,40 @@
         container.scrollTop = container.scrollHeight;
     }
 
+    async function respondOffer(offerId, status) {
+        const formData = new FormData();
+        formData.append('withUserId', String(withUserId));
+        formData.append('offerId', String(offerId));
+        formData.append('status', status);
+
+        const res = await fetch('/Messages/RespondOffer', {
+            method: 'POST',
+            body: formData
+        });
+
+        const payload = await res.json().catch(() => null);
+        if (!res.ok || !payload?.ok) {
+            alert(payload?.error || 'Teklif durumu guncellenemedi.');
+            return;
+        }
+
+        await refreshConversation();
+        container.scrollTop = container.scrollHeight;
+    }
+
     container.addEventListener('click', async (event) => {
         const target = event.target.closest('[data-action]');
         if (!target) return;
 
         const action = target.getAttribute('data-action');
+        if (action === 'offer-response') {
+            const offerId = Number(target.getAttribute('data-offer-id') || 0);
+            const offerStatus = target.getAttribute('data-offer-status') || '';
+            if (!offerId || !offerStatus) return;
+            await respondOffer(offerId, offerStatus);
+            return;
+        }
+
         const messageId = Number(target.getAttribute('data-id') || 0);
         if (!messageId) return;
 

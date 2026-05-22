@@ -1,7 +1,7 @@
 @model List<OfferDisplayViewModel>
 @using Degerliyuvam.Models
 @{
-    ViewData["Title"] = "Satıcı Teklifleri";
+    ViewData["Title"] = "Gelen Teklifler";
     var pending = Model.Count(x => x.Status == OfferStatus.Pending);
     var accepted = Model.Count(x => x.Status == OfferStatus.Accepted);
     var rejected = Model.Count(x => x.Status == OfferStatus.Rejected);
@@ -18,7 +18,7 @@
 
 <section class="panel reveal-on-scroll seller-offers-page">
     <div class="section-head slim">
-        <h2>Satıcı Teklifleri</h2>
+        <h2>Gelen Teklifler</h2>
         <p>İlanlarınıza gelen fiyat tekliflerini ve kiralama taleplerini tek yerden yönetin.</p>
     </div>
 

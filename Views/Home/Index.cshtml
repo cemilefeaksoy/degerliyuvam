@@ -4,10 +4,25 @@
     ViewData["Title"] = "Ana Sayfa — Premium Emlak";
     var featured = Model.Take(4).ToList();
     var adminRecommended = ViewBag.AdminRecommended as List<Listing> ?? new List<Listing>();
-    var canCreateListing = Context.Session.GetInt32("UserId").HasValue;
+    var isLoggedIn = Context.Session.GetInt32("UserId").HasValue;
+    var canCreateListing = isLoggedIn;
     var totalListings = ViewBag.TotalListings ?? 0;
     var totalCities   = ViewBag.TotalCities   ?? 0;
     var totalUsers    = ViewBag.TotalUsers     ?? 0;
+
+    string NormalizePurposeText(string? purpose)
+    {
+        var raw = (purpose ?? string.Empty).Trim().ToLowerInvariant()
+            .Replace('ı', 'i')
+            .Replace('ş', 's')
+            .Replace('ğ', 'g')
+            .Replace('ü', 'u')
+            .Replace('ö', 'o')
+            .Replace('ç', 'c');
+        return raw.StartsWith("sat", StringComparison.Ordinal) ? "Satılık" : "Kiralık";
+    }
+
+    bool IsSalePurpose(Listing listing) => NormalizePurposeText(listing.ListingPurpose) == "Satılık";
 }
 
 <div class="home-watermark" aria-hidden="true">
@@ -44,6 +59,10 @@
             {
                 <a class="btn-lux btn-ghost" asp-controller="Listings" asp-action="Create">+ İlan Ver</a>
             }
+            else
+            {
+                <a class="btn-lux btn-ghost" asp-controller="Account" asp-action="Login">Giriş Yap</a>
+            }
         </div>
     </div>
 
@@ -61,6 +80,7 @@
                 {
                     <span class="hv2-badge">★ Önerilen</span>
                 }
+                <span class="purpose-badge-overlay @(IsSalePurpose(item) ? "sale" : "rent")">@NormalizePurposeText(item.ListingPurpose).ToUpperInvariant()</span>
                 @if (item.IsRented)
                 {
                     <span class="rented-overlay">KİRALANDI</span>
@@ -69,6 +89,20 @@
         }
     </div>
 </section>
+
+@if (!isLoggedIn)
+{
+    <section class="panel reveal-on-scroll login-suggestion-panel">
+        <div class="section-head slim">
+            <h2>Hesabınızla Devam Edin</h2>
+            <p>Favori ilanları kaydetmek, satıcılarla mesajlaşmak ve teklif vermek için giriş yapın.</p>
+        </div>
+        <div class="detail-cta-row">
+            <a class="btn-lux" asp-controller="Account" asp-action="Login">Giriş Yap</a>
+            <a class="btn-chat" asp-controller="Account" asp-action="Register">Hesap Oluştur</a>
+        </div>
+    </section>
+}
 
 @* ═══ STATS BAR ══════════════════════════════════════════════════════════ *@
 <div class="stats-bar reveal-on-scroll">
@@ -109,6 +143,7 @@
                         <img src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
                         @if (item.IsRented) { <span class="rented-overlay">KİRALANDI</span> }
                         @if (item.IsAdminRecommended) { <span class="admin-badge-overlay">★ Önerilen</span> }
+                        <span class="purpose-badge-overlay @(IsSalePurpose(item) ? "sale" : "rent")">@NormalizePurposeText(item.ListingPurpose).ToUpperInvariant()</span>
                     </a>
                     <div class="portfolio-body">
                         <div class="portfolio-type-row">
@@ -129,7 +164,7 @@
                         <div class="portfolio-foot">
                             <div>
                                 <div class="portfolio-price">@item.MonthlyPrice.ToString("N0") TL</div>
-                                <div class="portfolio-price-label">@item.ListingPurpose</div>
+                                <div class="portfolio-price-label">@NormalizePurposeText(item.ListingPurpose)</div>
                             </div>
                             <a asp-controller="Listings" asp-action="Details" asp-route-id="@item.Id" class="btn-lux btn-thin">Detay →</a>
                         </div>
