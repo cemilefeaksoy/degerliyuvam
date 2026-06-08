@@ -603,6 +603,22 @@ public class AppService
         _db.SaveChanges();
     }
 
+    public void ResetPassword(string email, string newPassword)
+    {
+        var normalizedEmail = (email ?? string.Empty).Trim().ToLowerInvariant();
+        var user = _db.Users.FirstOrDefault(x => x.Email.ToLower() == normalizedEmail)
+            ?? throw new InvalidOperationException("Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı.");
+
+        var normalizedPassword = NormalizePassword(newPassword);
+        if (normalizedPassword.Length < 6)
+        {
+            throw new InvalidOperationException("Şifre en az 6 karakter olmalıdır.");
+        }
+
+        user.Password = HashPassword(normalizedPassword);
+        _db.SaveChanges();
+    }
+
     public void UpdateUserByAdmin(int actorUserId, UserAdminEditViewModel model)
     {
         var user = GetUser(model.Id) ?? throw new InvalidOperationException("Kullanici bulunamadi.");
